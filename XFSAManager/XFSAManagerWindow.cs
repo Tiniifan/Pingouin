@@ -126,6 +126,33 @@ namespace XFSAManager
             }
         }
 
+        private void ExportFolder(VirtualDirectory currentDirectory, string exportPath)
+        {
+            string directoryName = currentDirectory.Name;
+            string fullPath = Path.Combine(exportPath, directoryName);
+
+            Directory.CreateDirectory(fullPath);
+
+            foreach (var file in currentDirectory.Files)
+            {
+                string filePath = Path.Combine(fullPath, file.Key);
+                using (FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                {
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+                    while ((bytesRead = file.Value.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        fileStream.Write(buffer, 0, bytesRead);
+                    }
+                }
+            }
+
+            foreach (var subDirectory in currentDirectory.Folders)
+            {
+                ExportFolder(subDirectory, fullPath);
+            }
+        }
+
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
             openFileDialog1.Filter = "Level 5 Archive files (*.fa)|*.fa";
@@ -458,6 +485,56 @@ namespace XFSAManager
 
                 directoryInfoTextBox.Visible = true;
                 progressBar1.Visible = false;
+            }
+        }
+
+        private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string directoryPath = directoryTextBox.Text;
+
+            if (SelectedItemContextMenuStrip == null || SelectedItemContextMenuStrip.Tag.ToString() == "Folder")
+            {
+                if (SelectedItemContextMenuStrip != null)
+                {
+                    directoryPath += SelectedItemContextMenuStrip.Text;
+                }
+
+                CommonOpenFileDialog dialog = new CommonOpenFileDialog();
+                dialog.IsFolderPicker = true;
+
+                if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+                {
+                    string newFolderName = Path.GetFileName(dialog.FileName);
+                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                    ExportFolder(currentDirectory, dialog.FileName);
+
+                    MessageBox.Show(directoryPath + " exported!");
+                }
+            }
+            else
+            {
+                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                saveFileDialog1.Filter = "All files|*.*";
+                saveFileDialog1.RestoreDirectory = true;
+                saveFileDialog1.FileName = SelectedItemContextMenuStrip.Text;
+
+                if (saveFileDialog1.ShowDialog() == DialogResult.OK) 
+                {
+                    using (FileStream fileStream = new FileStream(saveFileDialog1.FileName, FileMode.Create, FileAccess.Write))
+                    {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+
+                        while ((bytesRead = currentDirectory.Files[SelectedItemContextMenuStrip.Text].Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            fileStream.Write(buffer, 0, bytesRead);
+                        }
+
+                        MessageBox.Show(SelectedItemContextMenuStrip.Text + " exported!");
+                    }
+                }
             }
         }
     }
