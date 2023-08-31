@@ -140,6 +140,10 @@ namespace XFSAManager
                 {
                     byte[] buffer = new byte[4096];
                     int bytesRead;
+
+                    // Set the position in the base stream
+                    file.Value.Seek();
+
                     while ((bytesRead = file.Value.Read(buffer, 0, buffer.Length)) > 0)
                     {
                         fileStream.Write(buffer, 0, bytesRead);
@@ -526,6 +530,9 @@ namespace XFSAManager
                     {
                         byte[] buffer = new byte[4096];
                         int bytesRead;
+
+                        // Set the position in the base stream
+                        currentDirectory.Files[SelectedItemContextMenuStrip.Text].Seek();
 
                         while ((bytesRead = currentDirectory.Files[SelectedItemContextMenuStrip.Text].Read(buffer, 0, buffer.Length)) > 0)
                         {

@@ -27,23 +27,24 @@ namespace XFSAManager.Tools
             BaseStream.Read(ByteContent, 0, ByteContent.Length);
         }
 
+        public void Seek()
+        {
+            BaseStream.Seek(Offset, SeekOrigin.Begin);
+        }
+
         public int Read(byte[] buffer, int offset, int count)
         {
+            Console.WriteLine(BaseStream.Position + " " + Offset);
+
             // Adjust count to read within the available range
-            long remainingBytes = (Offset + Size) - Offset;
+            long remainingBytes = (Offset + Size) - BaseStream.Position;
             if (remainingBytes <= 0)
                 return 0;
 
             int bytesToRead = (int)Math.Min(count, remainingBytes);
 
-            // Set the position in the base stream
-            BaseStream.Seek(Offset, SeekOrigin.Begin);
-
             // Read bytes from the base stream
             int bytesRead = BaseStream.Read(buffer, offset, bytesToRead);
-
-            // Update the offset
-            Offset += bytesRead;
 
             return bytesRead;
         }
