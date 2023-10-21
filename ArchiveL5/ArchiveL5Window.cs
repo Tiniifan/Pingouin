@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.VisualBasic;
 using System.IO;
+using System.Linq;
+using System.Drawing;
 using System.Windows.Forms;
+using System.ComponentModel;
+using System.Collections.Generic;
+using Microsoft.VisualBasic;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using ArchiveL5.Level5.Archive;
 using ArchiveL5.Level5.Archive.ARC0;
@@ -216,6 +213,7 @@ namespace ArchiveL5
         {
             openFileDialog1.Filter = "Supported Files (*.fa, *.xc, *.xb, *.pck)|*.fa;*.xc;*.xb;*.pck";
             openFileDialog1.RestoreDirectory = true;
+            openFileDialog1.FileName = null;
 
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
@@ -223,24 +221,33 @@ namespace ArchiveL5
 
                 string fileExtension = Path.GetExtension(openFileDialog1.FileName);
 
+                IArchive newArchive;
+
                 switch (fileExtension.ToLower())
                 {
                     case ".fa":
-                        ArchiveOpened = new ARC0(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
+                        newArchive = new ARC0(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
                         break;
                     case ".xc":
-                        ArchiveOpened = new XPCK(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
+                        newArchive = new XPCK(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
                         break;
                     case ".xb":
-                        ArchiveOpened = new XPCK(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
+                        newArchive = new XPCK(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
                         break;
                     case ".pck":
-                        ArchiveOpened = new XPCK(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
+                        newArchive = new XPCK(new FileStream(openFileDialog1.FileName, FileMode.Open, FileAccess.Read));
                         break;
                     default:
                         MessageBox.Show("Unsupported file type.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                 }
+
+                if (ArchiveOpened != null)
+                {
+                    ArchiveOpened.Close();
+                }
+
+                ArchiveOpened = newArchive;
 
                 directoryTextBox.Text = "/";
                 this.Text = "ArchiveL5 - " + Path.GetFileName(openFileDialog1.FileName);
@@ -686,6 +693,11 @@ namespace ArchiveL5
 
             if (!string.IsNullOrWhiteSpace(fileName))
             {
+                if (ArchiveOpened != null)
+                {
+                    ArchiveOpened.Close();
+                }
+
                 ArchiveOpened = new ARC0();
 
                 directoryTextBox.Text = "/";
@@ -708,6 +720,11 @@ namespace ArchiveL5
 
             if (!string.IsNullOrWhiteSpace(fileName))
             {
+                if (ArchiveOpened != null)
+                {
+                    ArchiveOpened.Close();
+                }
+
                 ArchiveOpened = new XPCK();
 
                 directoryTextBox.Text = "/";
@@ -750,7 +767,6 @@ namespace ArchiveL5
                 ImportFoldersFromVirtualDirectory(subDirectory, directory);
             }
         }
-
 
         private void ImportFilesFromVirtualDirectory(VirtualDirectory currentDirectory, VirtualDirectory importDirectory)
         {
