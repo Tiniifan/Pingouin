@@ -1,5 +1,7 @@
 
 .vs/
 Pingouin/bin/Debug/temp/
-Pingouin/bin/Release/Pingouin/temp
+Pingouin/bin/Release/temp
+Pingouin/bin/Debug/Pingouin.zip
+Pingouin/bin/Release/Pingouin.zip
 Pingouin/obj/

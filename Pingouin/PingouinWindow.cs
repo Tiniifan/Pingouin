@@ -772,7 +772,6 @@ namespace Pingouin
                     saveFileDialog.Filter = "XB Files (*.xb)|*.xb|XC Files (*.xc)|*.xc|PCK Files (*.pck)|*.pck";
                 }
 
-
                 saveFileDialog.InitialDirectory = openFileDialog1.InitialDirectory;
 
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
@@ -780,11 +779,14 @@ namespace Pingouin
                     backButton.Visible = false;
                     directoryTextBox.Visible = false;
                     searchTextBox.Visible = false;
+                    tableLayoutPanel2.Visible = false;
                     progressBar1.Visible = true;
 
                     progressBar1.Minimum = 0;
                     progressBar1.Maximum = 100;
                     progressBar1.Value = 0;
+
+                    Application.DoEvents();
 
                     if (openFileDialog1.FileName == saveFileDialog.FileName)
                     {
@@ -831,7 +833,11 @@ namespace Pingouin
                     backButton.Visible = true;
                     directoryTextBox.Visible = true;
                     searchTextBox.Visible = true;
+                    tableLayoutPanel2.Visible = true;
                     progressBar1.Visible = false;
+
+                    ArchiveOpened.Directory.ResetColor();
+                    DirectoryTextBox_TextChanged(sender, e);
                 }
             }
         }
@@ -1193,6 +1199,14 @@ namespace Pingouin
             }
         }
 
+        private void SearchTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (searchTextBox.ForeColor != Color.Black)
+            {
+                searchTextBox.ForeColor = Color.Black;
+            }
+        }
+
         private void SearchTextBox_TextChanged(object sender, EventArgs e)
         {
             if (!searchTextBox.Focused || searchTextBox.Text == "Search on : " + directoryTextBox.Text) return;
@@ -1209,7 +1223,6 @@ namespace Pingouin
             }
             else
             {
-                searchTextBox.ForeColor = Color.Black;
                 directoryListView.Items.Clear();
                 resultTextBox.Visible = true;
                 resultTextBox.Text = "Search results in " + directoryTextBox.Text;

@@ -435,6 +435,7 @@
             this.searchTextBox.Size = new System.Drawing.Size(379, 20);
             this.searchTextBox.TabIndex = 5;
             this.searchTextBox.TextChanged += new System.EventHandler(this.SearchTextBox_TextChanged);
+            this.searchTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.SearchTextBox_KeyPress);
             // 
             // panel2
             // 

@@ -388,6 +388,21 @@ namespace Pingouin.Tools
             // The searched directory has not been found in the current directory or its subdirectories
             return string.Empty;
         }
+
+        public void ResetColor()
+        {
+            Color = Color.Black;
+
+            foreach (KeyValuePair<string, SubMemoryStream> file in Files)
+            {
+                file.Value.Color = Color.Black;
+            }
+
+            foreach (VirtualDirectory subFolder in Folders)
+            {
+                subFolder.ResetColor();
+            }
+        }
     }
 }
 
