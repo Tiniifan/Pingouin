@@ -44,8 +44,6 @@ namespace Pingouin.Tools
 
         public int Read(byte[] buffer, int offset, int count)
         {
-            Console.WriteLine(BaseStream.Position + " " + Offset);
-
             // Adjust count to read within the available range
             long remainingBytes = (Offset + Size) - BaseStream.Position;
             if (remainingBytes <= 0)

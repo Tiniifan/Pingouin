@@ -231,6 +231,12 @@ namespace Pingouin
         private void ExportFolder(VirtualDirectory currentDirectory, string exportPath)
         {
             string directoryName = currentDirectory.Name;
+
+            if (directoryName == null)
+            {
+                directoryName = Path.GetFileNameWithoutExtension(openFileDialog1.FileName) + Path.GetExtension(openFileDialog1.FileName).Replace(".", "_");
+            }
+
             string fullPath = Path.Combine(exportPath, directoryName);
 
             Directory.CreateDirectory(fullPath);
@@ -830,12 +836,12 @@ namespace Pingouin
 
                     MessageBox.Show("Saved!");
 
+                    progressBar1.Visible = false;
                     backButton.Visible = true;
                     directoryTextBox.Visible = true;
                     searchTextBox.Visible = true;
                     tableLayoutPanel2.Visible = true;
-                    progressBar1.Visible = false;
-
+                    
                     DirectoryTextBox_TextChanged(sender, e);
                 }
             }
@@ -857,8 +863,12 @@ namespace Pingouin
 
                 if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
                 {
-                    string newFolderName = Path.GetFileName(dialog.FileName);
                     VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                    if (currentDirectory.Name == null)
+                    {
+                        directoryPath = Path.GetFileNameWithoutExtension(openFileDialog1.FileName) + Path.GetExtension(openFileDialog1.FileName).Replace(".", "_");
+                    }
 
                     ExportFolder(currentDirectory, dialog.FileName);
 
@@ -1262,7 +1272,8 @@ namespace Pingouin
 
         private void FolderNameTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            directoryTextBox.Text = GetNodeFullPath(e.Node);
+            string fullPath = GetNodeFullPath(e.Node);
+            directoryTextBox.Text = GetNodeFullPath(e.Node).Substring(1, fullPath.Length-1) + "/";
         }
 
         private string GetNodeFullPath(TreeNode node)
@@ -1277,7 +1288,7 @@ namespace Pingouin
             while (node.Parent != null)
             {
                 node = node.Parent;
-                fullPath.Insert(0, node.Text);
+                fullPath.Insert(0, node.Text + "/");
             }
 
             return fullPath.ToString();
