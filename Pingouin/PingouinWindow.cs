@@ -162,7 +162,7 @@ namespace Pingouin
             SubMemoryStream fileData;
             string fileName = Path.GetFileName(selectedFile);
 
-            FileStream fileStream = new FileStream(selectedFile, FileMode.Open, FileAccess.Read);
+            FileStream fileStream = new FileStream(selectedFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             long fileOffset = 0;
             long fileSize = fileStream.Length;
             fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
@@ -204,7 +204,7 @@ namespace Pingouin
                 SubMemoryStream fileData;
                 string fileName = Path.GetFileName(file);
 
-                FileStream fileStream = new FileStream(file, FileMode.Open, FileAccess.Read);
+                FileStream fileStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 long fileOffset = 0;
                 long fileSize = fileStream.Length;
                 fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
@@ -711,7 +711,7 @@ namespace Pingouin
                     // Get Gile data
                     SubMemoryStream fileData;
 
-                    FileStream fileStream = new FileStream(openFileDialog2.FileName, FileMode.Open, FileAccess.Read);
+                    FileStream fileStream = new FileStream(openFileDialog2.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     long fileOffset = 0;
                     long fileSize = fileStream.Length;
                     fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
@@ -802,7 +802,9 @@ namespace Pingouin
                         ArchiveOpened.Save(tempPath + @"\" + fileName, progressBar1);
 
                         // Close File
-                        ArchiveOpened.Close();
+                        Type archiveType = ArchiveOpened.GetType();
+                        Console.WriteLine(archiveType);
+                        ArchiveOpened = ArchiveOpened.Close();
 
                         if (File.Exists(openFileDialog1.FileName))
                         {
@@ -811,17 +813,15 @@ namespace Pingouin
 
                         File.Move(tempPath + @"\" + fileName, saveFileDialog.FileName);
 
-                        if (ArchiveOpened is ARC0)
+                        if (archiveType == typeof(ARC0))
                         {
                             ArchiveOpened = new ARC0(new FileStream(saveFileDialog.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
                         }
-                        else if (ArchiveOpened is XPCK)
+                        else if (archiveType == typeof(XPCK))
                         {
                             // Re Open
                             ArchiveOpened = new XPCK(new FileStream(saveFileDialog.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
                         }
-
-                        directoryTextBox.Text = "/";
                     }
                     else
                     {
@@ -836,7 +836,6 @@ namespace Pingouin
                     tableLayoutPanel2.Visible = true;
                     progressBar1.Visible = false;
 
-                    ArchiveOpened.Directory.ResetColor();
                     DirectoryTextBox_TextChanged(sender, e);
                 }
             }
