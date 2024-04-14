@@ -41,32 +41,13 @@ namespace Pingouin.Level5.Archive.XPCK
             public uint FileSize => ((uint)tmp2Z << 16) | tmp2;
         }
 
-        public static byte[] CalculateF1F2(int x)
+        public static byte[] CalculateF1F2(int fileCount)
         {
-            int f1, f2;
-
-            if (x < 256)
-            {
-                f1 = x;
-                f2 = 1;
-
-                while (f2 <= x)
-                {
-                    f2 *= 2;
-                }
-
-                int coefficient = (int)Math.Log(f2, 2) * 10;
-                coefficient = Convert.ToInt32("0x" + coefficient, 16);
-
-                return new byte[] { Convert.ToByte(f1), Convert.ToByte(coefficient) };
-            }
-            else
-            {
-                f1 = x & 0xFF;
-                f2 = (x >> 8) & 0xFF;
-
-                return new byte[] { Convert.ToByte(f1), Convert.ToByte(f2) };
-            }
+            int fc1 = fileCount & 0xFF;
+            int fc2 = (fileCount >> 8) & 0xF;
+            int f1 = fc1;
+            int f2 = (fc2 << 8) | fc1;
+            return new byte[] { Convert.ToByte(f1), Convert.ToByte(f2) };
         }
     }
 }
