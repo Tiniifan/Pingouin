@@ -43,11 +43,14 @@ namespace Pingouin.Level5.Archive.XPCK
 
         public static byte[] CalculateF1F2(int fileCount)
         {
-            int fc1 = fileCount & 0xFF;
-            int fc2 = (fileCount >> 8) & 0xF;
-            int f1 = fc1;
-            int f2 = (fc2 << 8) | fc1;
-            return new byte[] { Convert.ToByte(f1), Convert.ToByte(f2) };
+            byte fc1 = (byte)(fileCount & 0xFF);
+            byte fc2 = (byte)((fileCount >> 8) & 0xF);
+
+            byte[] result = new byte[2];
+            result[0] = fc1;
+            result[1] = fc2;
+
+            return result;
         }
     }
 }
