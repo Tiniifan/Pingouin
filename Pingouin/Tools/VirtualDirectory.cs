@@ -2,8 +2,9 @@
 using System.IO;
 using System.Linq;
 using System.Drawing;
-using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace Pingouin.Tools
 {
@@ -304,13 +305,19 @@ namespace Pingouin.Tools
                 matchingFolders.Add(this);
             }
 
+            // Use Partitioner to partition the workload
+            var folderPartitions = Partitioner.Create(Folders, true);
+
             // Parallel recursive call for each subfolder
-            Parallel.ForEach(Folders, subFolder =>
+            Parallel.ForEach(folderPartitions, subFolder =>
             {
-                List<VirtualDirectory> subFolderMatches = subFolder.SearchDirectories(directoryName);
-                lock (matchingFolders)
+                var subFolderMatches = subFolder.SearchDirectories(directoryName);
+                if (subFolderMatches.Count > 0)
                 {
-                    matchingFolders.AddRange(subFolderMatches);
+                    lock (matchingFolders)
+                    {
+                        matchingFolders.AddRange(subFolderMatches);
+                    }
                 }
             });
 
@@ -322,17 +329,26 @@ namespace Pingouin.Tools
             List<KeyValuePair<string, SubMemoryStream>> matchingFiles = new List<KeyValuePair<string, SubMemoryStream>>();
 
             // Search in the current folder
-            foreach (KeyValuePair<string, SubMemoryStream> file in Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1))
+            foreach (var file in Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1))
             {
                 matchingFiles.Add(file);
             }
 
-            // Recursive call for each subfolder
-            foreach (VirtualDirectory subFolder in Folders)
+            // Use Partitioner to partition the workload
+            var folderPartitions = Partitioner.Create(Folders, true);
+
+            // Parallel recursive call for each subfolder
+            Parallel.ForEach(folderPartitions, subFolder =>
             {
-                List<KeyValuePair<string, SubMemoryStream>> subFolderMatches = subFolder.SearchFiles(fileName);
-                matchingFiles.AddRange(subFolderMatches);
-            }
+                var subFolderMatches = subFolder.SearchFiles(fileName);
+                if (subFolderMatches.Count > 0)
+                {
+                    lock (matchingFiles)
+                    {
+                        matchingFiles.AddRange(subFolderMatches);
+                    }
+                }
+            });
 
             return matchingFiles;
         }
@@ -341,22 +357,33 @@ namespace Pingouin.Tools
         {
             List<KeyValuePair<string, SubMemoryStream>> matchingFiles = new List<KeyValuePair<string, SubMemoryStream>>();
 
+            string fullPath = GetFullPath(root);
+
             // Search in the current folder
-            foreach (KeyValuePair<string, SubMemoryStream> file in Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1))
+            foreach (var file in Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1))
             {
-                string fullPath = GetFullPath(root);
                 matchingFiles.Add(new KeyValuePair<string, SubMemoryStream>("/" + fullPath + "/" + file.Key, file.Value));
             }
 
-            // Recursive call for each subfolder
-            foreach (VirtualDirectory subFolder in Folders)
+            // Use Partitioner to partition the workload
+            var folderPartitions = Partitioner.Create(Folders, true);
+
+            // Parallel recursive call for each subfolder
+            Parallel.ForEach(folderPartitions, subFolder =>
             {
-                List<KeyValuePair<string, SubMemoryStream>> subFolderMatches = subFolder.SearchFiles(root, fileName);
-                matchingFiles.AddRange(subFolderMatches);
-            }
+                var subFolderMatches = subFolder.SearchFiles(root, fileName);
+                if (subFolderMatches.Count > 0)
+                {
+                    lock (matchingFiles)
+                    {
+                        matchingFiles.AddRange(subFolderMatches);
+                    }
+                }
+            });
 
             return matchingFiles;
         }
+
 
         public string GetFullPath(VirtualDirectory root)
         {

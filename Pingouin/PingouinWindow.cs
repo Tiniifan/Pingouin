@@ -19,7 +19,7 @@ namespace Pingouin
     {
         private IArchive ArchiveOpened;
 
-        private bool IsLeftClick = false;
+        private TreeNode TreeNodeRightClick;
 
         private ListViewItem SelectedItemContextMenuStrip;
 
@@ -29,6 +29,8 @@ namespace Pingouin
         private List<(IArchive, string, string, IArchive)> OpenedArchives = new List<(IArchive, string, string, IArchive)>();
 
         private int OpenedArchiveIndex = 0;
+
+        private string LastParent = "";
 
         public PingouinWindow()
         {
@@ -89,11 +91,34 @@ namespace Pingouin
             }
         }
 
+        private void CollapseAllExpandedNodes(TreeNodeCollection nodes)
+        {
+            foreach (TreeNode node in nodes)
+            {
+                if (node.IsExpanded && node.Text != LastParent && (node.Parent == null || (node.Parent != null && node.Parent.Text != LastParent)))
+                {
+                    node.Collapse();
+                }
+
+                CollapseAllExpandedNodes(node.Nodes);
+            }
+        }
+
+        private void ExpandNodeAndParents(TreeNode node)
+        {
+            TreeNode currentNode = node;
+            while (currentNode != null)
+            {
+                currentNode.Expand();
+                currentNode = currentNode.Parent;
+            }
+        }
+
         private TreeNode CreateTreeNode(VirtualDirectory folder)
         {
-            TreeNode entryNode = new TreeNode(folder.Name);
+            TreeNode entryNode = new TreeNode(folder.Name, 0, 0);
 
-            foreach(VirtualDirectory subFolder in folder.Folders)
+            foreach (VirtualDirectory subFolder in folder.Folders)
             {
                 entryNode.Nodes.Add(CreateTreeNode(subFolder));
             }
@@ -104,9 +129,9 @@ namespace Pingouin
         private void DrawFolder(string path)
         {
             directoryListView.Items.Clear();
+            backButton.Enabled = path != "/";
             searchTextBox.ForeColor = Color.Gray;
             searchTextBox.Text = "Search on : " + path;
-            backButton.Enabled = path != "/";
 
             VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(path);
 
@@ -140,6 +165,21 @@ namespace Pingouin
                 fullsize += file.Value.Size;
             }
 
+            TreeNode folderNode = GetTreeNodeFromPath(directoryTextBox.Text);
+            if (folderNode != null)
+            {
+                if (folderNode.Parent != null)
+                {
+                    LastParent = folderNode.Parent.Text;
+                } else
+                {
+                    LastParent = null;
+                }
+
+                CollapseAllExpandedNodes(folderNameTreeView.Nodes);
+                ExpandNodeAndParents(folderNode);
+            }
+
             UpdateDirectoryInfo(currentDirectory, fullsize);
         }
 
@@ -157,26 +197,173 @@ namespace Pingouin
             folderNameTreeView.Nodes.Add(rootNode);
         }
 
-        private void ImportFile(VirtualDirectory currentDirectory, string selectedFile)
+        private string GetNodeFullPath(TreeNode node)
         {
-            SubMemoryStream fileData;
-            string fileName = Path.GetFileName(selectedFile);
-
-            FileStream fileStream = new FileStream(selectedFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            long fileOffset = 0;
-            long fileSize = fileStream.Length;
-            fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
-            fileData.Color = Color.Orange;
-
-            if (currentDirectory.Files.ContainsKey(fileName))
+            if (node == null)
             {
-                // Replace
-                currentDirectory.Files[fileName] = fileData;
+                return string.Empty;
             }
-            else
+
+            StringBuilder fullPath = new StringBuilder(node.Text);
+
+            if (node.Text == "/")
             {
-                // Insert new
-                currentDirectory.AddFile(Path.GetFileName(selectedFile), fileData);
+                return fullPath.ToString();
+            } else
+            {
+                while (node.Parent != null && node.Parent.Text != "/")
+                {
+                    node = node.Parent;
+                    fullPath.Insert(0, node.Text + "/");
+                }
+
+                return $"/{fullPath.ToString()}/";
+            }
+        }
+
+        private TreeNode GetTreeNodeFromPath(string path)
+        {
+            string[] pathSegments = path.Trim('/').Split('/');
+            TreeNode currentNode = folderNameTreeView.Nodes[0];
+
+            if (path == "/")
+            {
+                return currentNode;
+            } else
+            {
+                foreach (string segment in pathSegments)
+                {
+                    bool found = false;
+                    foreach (TreeNode child in currentNode.Nodes)
+                    {
+                        if (child.Text == segment)
+                        {
+                            currentNode = child;
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        return null;
+                    }
+                }
+
+                return currentNode;
+            }
+        }
+
+        private void AddNewFolder(string directoryPath, bool draw)
+        {
+            string folderName = Interaction.InputBox("Enter folder name:", "New Folder");
+
+            if (!string.IsNullOrWhiteSpace(folderName))
+            {
+                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                if (currentDirectory.Folders.Any(x => x.Name == folderName))
+                {
+                    MessageBox.Show("The folder " + folderName + " cannot be created because it already exists.");
+                }
+                else
+                {
+                    currentDirectory.AddFolder(folderName);
+                    currentDirectory.Color = Color.Orange;
+
+                    TreeNode baseNode = folderNameTreeView.Nodes[0];
+                    if (directoryPath.Length > 1)
+                    {
+                        baseNode = GetTreeNodeFromPath(directoryPath);
+                        baseNode = baseNode.Parent;
+                    }
+                    baseNode.Nodes.Add(new TreeNode(folderName, 0, 0));
+
+                    if (draw)
+                    {
+                        ListViewItem listViewItem = new ListViewItem(folderName, 0);
+                        listViewItem.ForeColor = Color.Orange;
+                        listViewItem.SubItems.Add(FormatSize(0));
+                        listViewItem.Tag = "Folder";
+                        directoryListView.Items.Add(listViewItem);
+                        UpdateDirectoryInfo(currentDirectory, GetFullsize(currentDirectory));
+                    }
+                }
+            }
+        }
+
+        private void ImportFolder(string directoryPath, bool draw = false)
+        {
+            CommonOpenFileDialog dialog = new CommonOpenFileDialog();
+            dialog.IsFolderPicker = true;
+
+            if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+            {
+                string newFolderName = Path.GetFileName(dialog.FileName);
+                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                ImportFolder(currentDirectory, dialog.FileName);
+
+                if (draw)
+                {
+                    ListViewItem existingItem = directoryListView.FindItemWithText(newFolderName);
+
+                    if (existingItem != null)
+                    {
+                        directoryListView.Items.Remove(existingItem);
+                    }
+
+                    ListViewItem listViewItem = new ListViewItem(newFolderName, 0);
+                    listViewItem.ForeColor = Color.Orange;
+                    listViewItem.SubItems.Add(FormatSize(currentDirectory.GetFolder(newFolderName).GetSize()));
+                    listViewItem.Tag = "Folder";
+                    directoryListView.Items.Add(listViewItem);
+                }
+
+                DrawFolder(directoryPath);
+            }
+        }
+
+        private void ImportFiles(string directoryPath, bool draw)
+        {
+            openFileDialog2.Filter = "All files|*.*";
+            openFileDialog2.Multiselect = true;
+            openFileDialog2.RestoreDirectory = true;
+
+            if (openFileDialog2.ShowDialog() == DialogResult.OK)
+            {
+                string[] selectedFiles = openFileDialog2.FileNames;
+                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                foreach (string file in selectedFiles)
+                {
+                    SubMemoryStream fileData;
+                    string fileName = Path.GetFileName(file);
+
+                    FileStream fileStream = new FileStream(file, FileMode.Open, FileAccess.Read);
+                    long fileOffset = 0;
+                    long fileSize = fileStream.Length;
+                    fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
+                    fileData.Color = Color.Orange;
+
+                    if (currentDirectory.Files.ContainsKey(fileName))
+                    {
+                        // Replace
+                        currentDirectory.Files[fileName] = fileData;
+                    }
+                    else
+                    {
+                        // Insert new
+                        currentDirectory.AddFile(Path.GetFileName(file), fileData);
+                    }
+                }
+
+                if (draw)
+                {
+                    DrawFolder(directoryTextBox.Text);
+                }
+
+                DrawRootFolder();
             }
         }
 
@@ -188,7 +375,8 @@ namespace Pingouin
             {
                 currentDirectory = currentDirectory.GetFolder(directoryName);
                 currentDirectory.Color = Color.Orange;
-            } else
+            }
+            else
             {
                 if (ArchiveOpened.Name == "ARC0")
                 {
@@ -214,7 +402,8 @@ namespace Pingouin
                 {
                     // Replace
                     currentDirectory.Files[fileName] = fileData;
-                } else
+                }
+                else
                 {
                     // Insert new
                     currentDirectory.AddFile(Path.GetFileName(file), fileData);
@@ -225,6 +414,207 @@ namespace Pingouin
             foreach (string subDir in subDirectories)
             {
                 ImportFolder(currentDirectory, subDir);
+            }
+        }
+
+        private void OpenInNewView(string selectedFolder)
+        {
+            OpenedArchives.Add((ArchiveOpened, Path.GetFileName(openFileDialog1.FileName), selectedFolder, null));
+
+            var lastIndex = archiveOpenedTabControl.TabPages.Count - 1;
+            archiveOpenedTabControl.TabPages.Insert(lastIndex, Path.GetFileName(openFileDialog1.FileName) + " - " + selectedFolder);
+            archiveOpenedTabControl.SelectedIndex = lastIndex;
+        }
+
+        private void DeleteFolder(string selectedFolder = null, bool isDirectory = false)
+        {
+            string directoryPath = directoryTextBox.Text;
+            VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+            if (isDirectory)
+            {
+                VirtualDirectory selectedDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath + selectedFolder);
+                currentDirectory.Folders.Remove(selectedDirectory);
+                DrawRootFolder();
+
+                if (OpenedArchives.Any(x => x.Item3 == $"/{selectedFolder}")) 
+                {
+                    var matches = OpenedArchives.FindAll(x => x.Item3 == $"/{selectedFolder}");
+                    for (int i = 0; i < matches.Count(); i++)
+                    {
+                        int index = OpenedArchives.IndexOf(matches[i]);
+                        archiveOpenedTabControl.TabPages.RemoveAt(index);
+                        OpenedArchives.RemoveAt(index);
+                    }
+                    
+                }
+            } else
+            {
+                currentDirectory.Files.Remove(selectedFolder);
+            }
+
+            MessageBox.Show(selectedFolder + " has been deleted.");
+            DrawFolder(directoryTextBox.Text);
+        }
+
+        private void RenameItem(string directoryPath, bool isDirectory)
+        {
+            if (isDirectory)
+            {
+                string folderName = Interaction.InputBox("Enter folder name:", "Rename Folder");
+
+                if (!string.IsNullOrWhiteSpace(folderName))
+                {
+                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                    if (currentDirectory.Folders.Any(x => x.Name == folderName))
+                    {
+                        MessageBox.Show("The folder name " + folderName + " cannot be selected because it already used by another folder.");
+                    }
+                    else
+                    {
+                        currentDirectory.Name = folderName;
+                        DrawRootFolder();
+                        DrawFolder(directoryTextBox.Text);                      
+                    }
+                }
+            }
+            else
+            {
+                string fileName = Interaction.InputBox("Enter file name:", "Rename File");
+
+                if (!string.IsNullOrWhiteSpace(fileName))
+                {
+                    string oldFileName = Path.GetFileName(directoryPath);
+                    directoryPath = Path.GetDirectoryName(directoryPath).Replace("\\", "/");
+                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                    if (currentDirectory.Files.ContainsKey(fileName))
+                    {
+                        MessageBox.Show("The file name " + fileName + " cannot be selected because it already used by another file.");
+                    }
+                    else
+                    {
+                        var oldItem = currentDirectory.Files[oldFileName];
+                        currentDirectory.Files.Remove(oldFileName);
+                        currentDirectory.Files.Add(fileName, oldItem);
+                        DrawFolder(directoryTextBox.Text);
+                    }
+                }
+            }
+        }
+
+        private void ReplaceItem(string directoryPath, bool isDirectory)
+        {
+            if (isDirectory)
+            {
+                if (ArchiveOpened.Name == "ARC0")
+                {
+                    ImportFolder(directoryPath, isDirectory);
+                }
+                else
+                {
+                    ImportFiles(directoryPath, true);
+                }
+            } else
+            {
+                // Import one file
+                openFileDialog2.Filter = "All files|*.*";
+                openFileDialog2.Multiselect = false;
+                openFileDialog2.RestoreDirectory = true;
+
+                if (openFileDialog2.ShowDialog() == DialogResult.OK)
+                {
+                    // Get Gile data
+                    SubMemoryStream fileData;
+
+                    FileStream fileStream = new FileStream(openFileDialog2.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    long fileOffset = 0;
+                    long fileSize = fileStream.Length;
+                    fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
+                    fileData.Color = Color.Orange;
+
+                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryTextBox.Text);
+
+                    currentDirectory.Files[SelectedItemContextMenuStrip.Text] = fileData;
+
+                    DrawFolder(directoryTextBox.Text);
+                }
+            }
+        }
+
+        private void ExportItem(string directoryPath, bool isDirectory)
+        {
+            if (isDirectory)
+            {
+                CommonOpenFileDialog dialog = new CommonOpenFileDialog();
+                dialog.IsFolderPicker = true;
+
+                if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+                {
+                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                    if (currentDirectory.Name == null)
+                    {
+                        directoryPath = Path.GetFileNameWithoutExtension(openFileDialog1.FileName) + Path.GetExtension(openFileDialog1.FileName).Replace(".", "_");
+                    }
+
+                    ExportFolder(currentDirectory, dialog.FileName);
+
+                    MessageBox.Show(directoryPath + " exported!");
+                }
+            }
+            else
+            {
+                string fileName = Path.GetFileName(directoryPath);
+                directoryPath = Path.GetDirectoryName(directoryPath).Replace("\\", "/");
+                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+
+                saveFileDialog1.Filter = "All files|*.*";
+                saveFileDialog1.RestoreDirectory = true;
+                saveFileDialog1.FileName = fileName;
+
+                if (saveFileDialog1.ShowDialog() == DialogResult.OK)
+                {
+                    using (FileStream fileStream = new FileStream(saveFileDialog1.FileName, FileMode.Create, FileAccess.Write))
+                    {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+
+                        // Set the position in the base stream
+                        currentDirectory.Files[fileName].Seek();
+
+                        while ((bytesRead = currentDirectory.Files[fileName].Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            fileStream.Write(buffer, 0, bytesRead);
+                        }
+
+                        MessageBox.Show(fileName + " exported!");
+                    }
+                }
+            }
+        }
+
+        private void ImportFile(VirtualDirectory currentDirectory, string selectedFile)
+        {
+            SubMemoryStream fileData;
+            string fileName = Path.GetFileName(selectedFile);
+
+            FileStream fileStream = new FileStream(selectedFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            long fileOffset = 0;
+            long fileSize = fileStream.Length;
+            fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
+            fileData.Color = Color.Orange;
+
+            if (currentDirectory.Files.ContainsKey(fileName))
+            {
+                // Replace
+                currentDirectory.Files[fileName] = fileData;
+            }
+            else
+            {
+                // Insert new
+                currentDirectory.AddFile(Path.GetFileName(selectedFile), fileData);
             }
         }
 
@@ -267,32 +657,16 @@ namespace Pingouin
 
         private void OpenArchiveL5(string filename)
         {
-            string fileExtension = Path.GetExtension(filename);
             FileStream fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            IArchive newArchive;
 
-            switch (fileExtension.ToLower())
+            ArchiveOpened = Archiver.GetArchive(fileStream);
+            if (ArchiveOpened == null)
             {
-                case ".fa":
-                    newArchive = new ARC0(fileStream);
-                    break;
-                case ".xc":
-                    newArchive = new XPCK(fileStream);
-                    break;
-                case ".xb":
-                    newArchive = new XPCK(fileStream);
-                    break;
-                case ".pck":
-                    newArchive = new XPCK(fileStream);
-                    break;
-                default:
-                    MessageBox.Show("Unsupported file type.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
+                MessageBox.Show("Unsupported file type.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
-            ArchiveOpened = newArchive;
-
-            OpenedArchives.Add((newArchive, Path.GetFileName(openFileDialog1.FileName), "/", null));
+            OpenedArchives.Add((ArchiveOpened, Path.GetFileName(openFileDialog1.FileName), "/", null));
 
             if (ArchiveOpened != null && OpenedArchives.Count != 1)
             {
@@ -301,9 +675,10 @@ namespace Pingouin
                 archiveOpenedTabControl.SelectedIndex = archiveOpenedTabControl.TabPages.Count - 2;
             }
 
-            directoryTextBox.Text = "/";
             DrawRootFolder();
+            directoryTextBox.Text = "/";
 
+            importToolStripMenuItem2.Enabled = true;
             saveToolStripMenuItem.Enabled = true;
             backButton.Enabled = true;
             directoryTextBox.Enabled = true;
@@ -334,10 +709,9 @@ namespace Pingouin
             }
         }
 
-        private void DirectoryListView_SelectedIndexChanged(object sender, EventArgs e)
+        private void DirectoryListView_MouseDoubleClick(object sender, MouseEventArgs e)
         {
-            if (!IsLeftClick) return;
-
+            // Assurez-vous que le double-clic a lieu sur un élément
             if (directoryListView.SelectedItems.Count > 0)
             {
                 ListViewItem selectedItem = directoryListView.SelectedItems[0];
@@ -359,7 +733,6 @@ namespace Pingouin
                     else if (selectedItemType == "File" && FiltredFiles != null && FiltredFiles.Count > 0)
                     {
                         IArchive newArchive;
-;
                         string directoryPath = "";
                         string fileName = Path.GetFileName(fullPath);
 
@@ -374,23 +747,24 @@ namespace Pingouin
                             directoryPath = "/";
                         }
 
-                        string fileExtension = fileName.Length >= 3
-                            ? fileName.Substring(fileName.Length - 3)
-                            : fileName;
+                        string fileExtension = Path.GetExtension(selectedItem.Text);
 
                         VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
                         byte[] fileContent = currentDirectory.GetFileFromFullPath(fileName);
 
                         if (fileExtension.ToLower() == ".xc" || fileExtension.ToLower() == ".xb" || fileExtension.ToLower() == ".pck")
                         {
-                            newArchive = new XPCK(fileContent);
+                            newArchive = Archiver.GetArchive(fileContent);
                         }
                         else
                         {
                             return;
                         }
 
-                        IsLeftClick = false;
+                        if (newArchive == null)
+                        {
+                            return;
+                        }
 
                         var lastIndex = archiveOpenedTabControl.TabPages.Count - 1;
                         OpenedArchives.Add((newArchive, "memory:" + fullPath, "/", ArchiveOpened));
@@ -410,26 +784,29 @@ namespace Pingouin
                         }
 
                         directoryTextBox.Text += selectedItem.Text + "/";
-                    } else if (selectedItemType == "File")
+                    }
+                    else if (selectedItemType == "File")
                     {
                         IArchive newArchive;
 
-                        string fileExtension = selectedItem.Text.Length >= 3
-                            ? selectedItem.Text.Substring(selectedItem.Text.Length - 3)
-                            : selectedItem.Text;
+                        string fileExtension = Path.GetExtension(selectedItem.Text);
 
                         VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryTextBox.Text);
                         byte[] fileContent = currentDirectory.GetFileFromFullPath(selectedItem.Text);
 
                         if (fileExtension.ToLower() == ".xc" || fileExtension.ToLower() == ".xb" || fileExtension.ToLower() == ".pck")
                         {
-                            newArchive = new XPCK(fileContent);
-                        } else
+                            newArchive = Archiver.GetArchive(fileContent);
+                        }
+                        else
                         {
                             return;
                         }
 
-                        IsLeftClick = false;
+                        if (newArchive == null)
+                        {
+                            return;
+                        }
 
                         var lastIndex = archiveOpenedTabControl.TabPages.Count - 1;
                         OpenedArchives.Add((newArchive, "memory:" + directoryTextBox.Text + selectedItem.Text, "/", ArchiveOpened));
@@ -437,8 +814,6 @@ namespace Pingouin
                         archiveOpenedTabControl.SelectedIndex = archiveOpenedTabControl.TabPages.Count - 2;
                     }
                 }
-
-                IsLeftClick = false;
             }
         }
 
@@ -489,45 +864,19 @@ namespace Pingouin
 
         private void DirectoryListView_MouseDown(object sender, MouseEventArgs e)
         {
-            IsLeftClick = e.Button == MouseButtons.Left;
+            //IsLeftClick = e.Button == MouseButtons.Left;
         }
 
         private void NewToolStripMenuItem_Click(object sender, EventArgs e)
         {
             string directoryPath = directoryTextBox.Text;
-            
+
             if (SelectedItemContextMenuStrip != null)
             {
                 directoryPath += SelectedItemContextMenuStrip.Text;
             }
-            
-            string folderName = Interaction.InputBox("Enter folder name:", "New Folder");
 
-            if (!string.IsNullOrWhiteSpace(folderName))
-            {
-                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-
-                if (currentDirectory.Folders.Any(x => x.Name == folderName))
-                {
-                    MessageBox.Show("The folder " + folderName + " cannot be created because it already exists.");
-                }
-                else
-                {
-                    currentDirectory.AddFolder(folderName);
-                    currentDirectory.Color = Color.Orange;
-
-                    if (SelectedItemContextMenuStrip == null)
-                    {
-                        ListViewItem listViewItem = new ListViewItem(folderName, 0);
-                        listViewItem.ForeColor = Color.Orange;
-                        listViewItem.SubItems.Add(FormatSize(0));
-                        listViewItem.Tag = "Folder";
-                        directoryListView.Items.Add(listViewItem);
-                    }
-
-                    UpdateDirectoryInfo(currentDirectory, GetFullsize(currentDirectory));
-                }
-            }
+            AddNewFolder(directoryPath, SelectedItemContextMenuStrip == null);
         }
 
         private void ImportToolStripMenuItem_Click(object sender, EventArgs e)
@@ -539,197 +888,56 @@ namespace Pingouin
                 directoryPath += SelectedItemContextMenuStrip.Text;
             }
 
-            CommonOpenFileDialog dialog = new CommonOpenFileDialog();
-            dialog.IsFolderPicker = true;
-
-            if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
-            {
-                string newFolderName = Path.GetFileName(dialog.FileName);
-                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-
-                ImportFolder(currentDirectory, dialog.FileName);
-
-                if (SelectedItemContextMenuStrip == null)
-                {
-                    ListViewItem existingItem = directoryListView.FindItemWithText(newFolderName);
-
-                    if (existingItem != null)
-                    {
-                        directoryListView.Items.Remove(existingItem);
-                    }
-
-                    ListViewItem listViewItem = new ListViewItem(newFolderName, 0);
-                    listViewItem.ForeColor = Color.Orange;
-                    listViewItem.SubItems.Add(FormatSize(currentDirectory.GetFolder(newFolderName).GetSize()));
-                    listViewItem.Tag = "Folder";
-                    directoryListView.Items.Add(listViewItem);
-                }
-
-                DrawFolder(directoryPath);
-                DrawRootFolder();
-            }
+            ImportFolder(directoryPath, SelectedItemContextMenuStrip != null);
         }
 
         private void ImportFilesToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             string directoryPath = directoryTextBox.Text;
+            bool draw = true;
 
             if (SelectedItemContextMenuStrip != null)
             {
                 directoryPath += SelectedItemContextMenuStrip.Text;
+                draw = false;
             }
 
-            openFileDialog2.Filter = "All files|*.*";
-            openFileDialog2.Multiselect = true;
-            openFileDialog2.RestoreDirectory = true;
-
-            if (openFileDialog2.ShowDialog() == DialogResult.OK)
-            {
-                string[] selectedFiles = openFileDialog2.FileNames;
-                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-
-                foreach (string file in selectedFiles)
-                {
-                    SubMemoryStream fileData;
-                    string fileName = Path.GetFileName(file);
-
-                    FileStream fileStream = new FileStream(file, FileMode.Open, FileAccess.Read);
-                    long fileOffset = 0;
-                    long fileSize = fileStream.Length;
-                    fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
-                    fileData.Color = Color.Orange;
-
-                    if (currentDirectory.Files.ContainsKey(fileName))
-                    {
-                        // Replace
-                        currentDirectory.Files[fileName] = fileData;
-                    }
-                    else
-                    {
-                        // Insert new
-                        currentDirectory.AddFile(Path.GetFileName(file), fileData);
-                    }
-                }
-
-                if (SelectedItemContextMenuStrip == null)
-                {
-                    DrawFolder(directoryTextBox.Text);
-                }
-
-                DrawRootFolder();
-            }
+            ImportFiles(directoryPath, draw);
         }
 
         private void RenameToolStripMenuItem_Click(object sender, EventArgs e)
         {
             string directoryPath = directoryTextBox.Text;
+            bool isDirectory = true;
 
-            if (SelectedItemContextMenuStrip == null) return;
-
-            if (SelectedItemContextMenuStrip.Tag.ToString() == "Folder")
+            if (SelectedItemContextMenuStrip != null)
             {
                 directoryPath += SelectedItemContextMenuStrip.Text;
-
-                string folderName = Interaction.InputBox("Enter folder name:", "Rename Folder");
-
-                if (!string.IsNullOrWhiteSpace(folderName))
-                {
-                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-
-                    if (currentDirectory.Folders.Any(x => x.Name == folderName))
-                    {
-                        MessageBox.Show("The folder name " + folderName + " cannot be selected because it already used by another folder.");
-                    }
-                    else
-                    {
-                        currentDirectory.Name = folderName;
-                        SelectedItemContextMenuStrip.Text = folderName;
-                        DrawRootFolder();
-                    }
-                }
-            } else
-            {
-                string fileName = Interaction.InputBox("Enter file name:", "Rename File");
-
-                if (!string.IsNullOrWhiteSpace(fileName))
-                {
-                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-
-                    if (currentDirectory.Files.ContainsKey(fileName))
-                    {
-                        MessageBox.Show("The file name " + fileName + " cannot be selected because it already used by another file.");
-                    }
-                    else
-                    {
-                        var oldItem = currentDirectory.Files[SelectedItemContextMenuStrip.Text];
-                        currentDirectory.Files.Remove(SelectedItemContextMenuStrip.Text);
-                        currentDirectory.Files.Add(fileName, oldItem);
-                        SelectedItemContextMenuStrip.Text = fileName;
-                    }
-                }           
+                isDirectory = SelectedItemContextMenuStrip.Tag.ToString() == "Folder";
             }
+
+            RenameItem(directoryPath, isDirectory);
         }
 
         private void DeleteToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            string directoryPath = directoryTextBox.Text;
-
             if (SelectedItemContextMenuStrip == null) return;
 
-            if (SelectedItemContextMenuStrip.Tag.ToString() == "Folder")
-            {
-                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-                VirtualDirectory selectedDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath + SelectedItemContextMenuStrip.Text);
-                currentDirectory.Folders.Remove(selectedDirectory);
-                DrawRootFolder();
-            }
-            else
-            {
-                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-                currentDirectory.Files.Remove(SelectedItemContextMenuStrip.Text);             
-            }
-
-            MessageBox.Show(SelectedItemContextMenuStrip.Text + " has been deleted.");
-            DrawFolder(directoryTextBox.Text);
+            DeleteFolder(SelectedItemContextMenuStrip.Text, SelectedItemContextMenuStrip.Tag.ToString() == "Folder");
         }
 
         private void ReplaceToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (SelectedItemContextMenuStrip == null || SelectedItemContextMenuStrip.Tag.ToString() == "Folder")
+            string directoryPath = directoryTextBox.Text;
+            bool isDirectory = true;
+
+            if (SelectedItemContextMenuStrip != null)
             {
-                if (ArchiveOpened.Name == "ARC0")
-                {
-                    ImportToolStripMenuItem_Click(sender, e);
-                } else
-                {
-                    ImportFilesToolStripMenuItem1_Click(sender, e);
-                }
+                directoryPath += SelectedItemContextMenuStrip.Text;
+                isDirectory = SelectedItemContextMenuStrip.Tag.ToString() == "Folder";
             }
-            else
-            {
-                // Import one file
-                openFileDialog2.Filter = "All files|*.*";
-                openFileDialog2.Multiselect = false;
-                openFileDialog2.RestoreDirectory = true;
 
-                if (openFileDialog2.ShowDialog() == DialogResult.OK)
-                {
-                    // Get Gile data
-                    SubMemoryStream fileData;
-
-                    FileStream fileStream = new FileStream(openFileDialog2.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    long fileOffset = 0;
-                    long fileSize = fileStream.Length;
-                    fileData = new SubMemoryStream(fileStream, fileOffset, fileSize);
-                    fileData.Color = Color.Orange;
-
-                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryTextBox.Text);
-
-                    currentDirectory.Files[SelectedItemContextMenuStrip.Text] = fileData;
-
-                    DrawFolder(directoryTextBox.Text);
-                }
-            }
+            ReplaceItem(directoryPath, isDirectory);
         }
 
         private void SaveToolStripMenuItem_Click(object sender, EventArgs e)
@@ -809,7 +1017,6 @@ namespace Pingouin
 
                         // Close File
                         Type archiveType = ArchiveOpened.GetType();
-                        Console.WriteLine(archiveType);
                         ArchiveOpened = ArchiveOpened.Close();
 
                         if (File.Exists(openFileDialog1.FileName))
@@ -850,58 +1057,15 @@ namespace Pingouin
         private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
         {
             string directoryPath = directoryTextBox.Text;
+            bool isDirectory = true;
 
-            if (SelectedItemContextMenuStrip == null || SelectedItemContextMenuStrip.Tag.ToString() == "Folder")
+            if (SelectedItemContextMenuStrip != null)
             {
-                if (SelectedItemContextMenuStrip != null)
-                {
-                    directoryPath += SelectedItemContextMenuStrip.Text;
-                }
-
-                CommonOpenFileDialog dialog = new CommonOpenFileDialog();
-                dialog.IsFolderPicker = true;
-
-                if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
-                {
-                    VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
-
-                    if (currentDirectory.Name == null)
-                    {
-                        directoryPath = Path.GetFileNameWithoutExtension(openFileDialog1.FileName) + Path.GetExtension(openFileDialog1.FileName).Replace(".", "_");
-                    }
-
-                    ExportFolder(currentDirectory, dialog.FileName);
-
-                    MessageBox.Show(directoryPath + " exported!");
-                }
+                directoryPath += SelectedItemContextMenuStrip.Text;
+                isDirectory = SelectedItemContextMenuStrip.Tag.ToString() == "Folder";
             }
-            else
-            {
-                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
 
-                saveFileDialog1.Filter = "All files|*.*";
-                saveFileDialog1.RestoreDirectory = true;
-                saveFileDialog1.FileName = SelectedItemContextMenuStrip.Text;
-
-                if (saveFileDialog1.ShowDialog() == DialogResult.OK) 
-                {
-                    using (FileStream fileStream = new FileStream(saveFileDialog1.FileName, FileMode.Create, FileAccess.Write))
-                    {
-                        byte[] buffer = new byte[4096];
-                        int bytesRead;
-
-                        // Set the position in the base stream
-                        currentDirectory.Files[SelectedItemContextMenuStrip.Text].Seek();
-
-                        while ((bytesRead = currentDirectory.Files[SelectedItemContextMenuStrip.Text].Read(buffer, 0, buffer.Length)) > 0)
-                        {
-                            fileStream.Write(buffer, 0, bytesRead);
-                        }
-
-                        MessageBox.Show(SelectedItemContextMenuStrip.Text + " exported!");
-                    }
-                }
-            }
+            ExportItem(directoryPath, isDirectory);
         }
 
         private void XFSAToolStripMenuItem_Click(object sender, EventArgs e)
@@ -921,8 +1085,11 @@ namespace Pingouin
                     archiveOpenedTabControl.SelectedIndex = archiveOpenedTabControl.TabPages.Count - 2;
                 }
 
+                openFileDialog1.FileName = fileName;
+                DrawRootFolder();
                 directoryTextBox.Text = "/";
 
+                importToolStripMenuItem2.Enabled = true;
                 saveToolStripMenuItem.Enabled = true;
                 backButton.Enabled = true;
                 directoryTextBox.Enabled = true;
@@ -949,8 +1116,11 @@ namespace Pingouin
                     archiveOpenedTabControl.SelectedIndex = archiveOpenedTabControl.TabPages.Count - 2;
                 }
 
+                openFileDialog1.FileName = fileName;
+                DrawRootFolder();
                 directoryTextBox.Text = "/";
 
+                importToolStripMenuItem2.Enabled = true;
                 saveToolStripMenuItem.Enabled = true;
                 backButton.Enabled = true;
                 directoryTextBox.Enabled = true;
@@ -991,6 +1161,7 @@ namespace Pingouin
         {
             foreach (KeyValuePair<string, SubMemoryStream> file in importDirectory.Files)
             {
+                Console.WriteLine(file.Key);
                 SubMemoryStream fileData = file.Value;
                 fileData.Read();
 
@@ -1012,32 +1183,16 @@ namespace Pingouin
 
         private void ImportToolStripMenuItem2_Click(object sender, EventArgs e)
         {
-            openFileDialog3.Filter = "Supported Files (*.fa, *.xc, *.xb, *.pck)|*.fa;*.xc;*.xb;*.pck";
+            openFileDialog3.Filter = "Supported Files (*.fa, *.xc, *.xb, *.pck, *.zip)|*.fa;*.xc;*.xb;*.pck;*.zip";
             openFileDialog3.RestoreDirectory = true;
 
             if (openFileDialog3.ShowDialog() == DialogResult.OK)
             {
-                IArchive importArchive;
-
-                string fileExtension = Path.GetExtension(openFileDialog3.FileName);
-
-                switch (fileExtension.ToLower())
+                IArchive importArchive = Archiver.GetArchive(new FileStream(openFileDialog3.FileName, FileMode.Open, FileAccess.Read));
+                if (importArchive == null)
                 {
-                    case ".fa":
-                        importArchive = new ARC0(new FileStream(openFileDialog3.FileName, FileMode.Open, FileAccess.Read));
-                        break;
-                    case ".xc":
-                        importArchive = new XPCK(new FileStream(openFileDialog3.FileName, FileMode.Open, FileAccess.Read));
-                        break;
-                    case ".xb":
-                        importArchive = new XPCK(new FileStream(openFileDialog3.FileName, FileMode.Open, FileAccess.Read));
-                        break;
-                    case ".pck":
-                        importArchive = new XPCK(new FileStream(openFileDialog3.FileName, FileMode.Open, FileAccess.Read));
-                        break;
-                    default:
-                        MessageBox.Show("Unsupported file type.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
+                    MessageBox.Show("Unsupported file type.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
                 }
 
                 VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryTextBox.Text);
@@ -1099,10 +1254,7 @@ namespace Pingouin
                 directoryPath += SelectedItemContextMenuStrip.Text;
             }
 
-            OpenedArchives.Add((ArchiveOpened, Path.GetFileName(openFileDialog1.FileName), directoryPath, null));
-
-            var lastIndex = archiveOpenedTabControl.TabPages.Count - 1;
-            archiveOpenedTabControl.TabPages.Insert(lastIndex, Path.GetFileName(openFileDialog1.FileName) + " - " + directoryPath);
+            OpenInNewView(directoryPath);
         }
 
         private void ArchiveOpenedTabControl_SelectedIndexChanged(object sender, EventArgs e)
@@ -1218,9 +1370,9 @@ namespace Pingouin
 
         private void SearchTextBox_TextChanged(object sender, EventArgs e)
         {
-            if (!searchTextBox.Focused || searchTextBox.Text == "Search on : " + directoryTextBox.Text) return;
+            if (!searchTextBox.Focused || searchTextBox.Enabled == false || searchTextBox.Text == $"Search on : {directoryTextBox.Text}") return;
 
-            if (searchTextBox.Text == null || searchTextBox.Text == "")
+            if (string.IsNullOrEmpty(searchTextBox.Text))
             {
                 FiltredDirectoris = null;
                 FiltredFiles = null;
@@ -1228,7 +1380,6 @@ namespace Pingouin
                 directoryListView.Items.Clear();
                 DirectoryTextBox_TextChanged(sender, e);
                 resultTextBox.Visible = false;
-                searchTextBox.Text = "Search on : " + directoryTextBox.Text;
             }
             else
             {
@@ -1270,28 +1421,124 @@ namespace Pingouin
             }
         }
 
-        private void FolderNameTreeView_AfterSelect(object sender, TreeViewEventArgs e)
+        private void SearchTextBox_MouseEnter(object sender, EventArgs e)
         {
-            string fullPath = GetNodeFullPath(e.Node);
-            directoryTextBox.Text = GetNodeFullPath(e.Node).Substring(1, fullPath.Length-1) + "/";
+            if (searchTextBox.Text != $"Search on : {directoryTextBox.Text}") return;
+
+            this.Focus();
+            searchTextBox.Enabled = false;
+            searchTextBox.Text = "";
+            searchTextBox.Enabled = true;
+            searchTextBox.Focus();
         }
 
-        private string GetNodeFullPath(TreeNode node)
+        private void SearchTextBox_MouseLeave(object sender, EventArgs e)
         {
-            if (node == null)
+            if (string.IsNullOrEmpty(searchTextBox.Text))
             {
-                return string.Empty;
+                searchTextBox.Enabled = false;
+                FiltredDirectoris = null;
+                FiltredFiles = null;
+                searchTextBox.ForeColor = Color.Gray;
+                //directoryListView.Items.Clear();
+                //DirectoryTextBox_TextChanged(sender, e);
+                resultTextBox.Visible = false;
+                searchTextBox.Text = $"Search on : {directoryTextBox.Text}";
+                searchTextBox.Enabled = true;
+                this.Focus();
+            }
+        }
+
+        private void FolderNameTreeView_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            directoryTextBox.Text = GetNodeFullPath(e.Node);
+        }
+
+        private void DirectoryListView_ItemDrag(object sender, ItemDragEventArgs e)
+        {
+            List<string> filePaths = new List<string>() { };
+            string tempFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp");
+
+            foreach (ListViewItem item in directoryListView.SelectedItems)
+            {
+                if (item.Tag.ToString() == "Folder")
+                {
+                    ExportFolder(ArchiveOpened.Directory.GetFolderFromFullPath($"{directoryTextBox.Text}{item.Text}"), "./temp");
+                    filePaths.Add($"{tempFolderPath}\\{directoryTextBox.Text}{item.Text}");
+                } else
+                {
+                    string filePath = Path.Combine("./temp", item.Text);
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                    File.WriteAllBytes(filePath, ArchiveOpened.Directory.GetFileFromFullPath($"{directoryTextBox.Text}{item.Text}"));
+                    filePaths.Add($"{tempFolderPath}\\{item.Text}");
+                }
             }
 
-            StringBuilder fullPath = new StringBuilder(node.Text);
+            directoryListView.DoDragDrop(new DataObject(DataFormats.FileDrop, filePaths.ToArray()), DragDropEffects.Move);
+        }
 
-            while (node.Parent != null)
+        private void DirectoryListView_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
-                node = node.Parent;
-                fullPath.Insert(0, node.Text + "/");
+                e.Effect = DragDropEffects.Move;
             }
+        }
 
-            return fullPath.ToString();
+        private void FolderNameTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                TreeNodeRightClick = e.Node;
+                treeViewContextMenuStrip.Show(folderNameTreeView, e.Location);
+            }
+        }
+
+        private void NewToolStripMenuItem2_Click(object sender, EventArgs e)
+        {
+            AddNewFolder(GetNodeFullPath(TreeNodeRightClick), false);
+            TreeNodeRightClick = null;
+        }
+
+        private void ImportToolStripMenuItem3_Click(object sender, EventArgs e)
+        {
+            ImportFolder(GetNodeFullPath(TreeNodeRightClick), false);
+            TreeNodeRightClick = null;
+        }
+
+        private void OpenInANewViewToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            OpenInNewView(GetNodeFullPath(TreeNodeRightClick));
+            TreeNodeRightClick = null;
+        }
+
+        private void DeleteToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            DeleteFolder(GetNodeFullPath(TreeNodeRightClick), true);
+            TreeNodeRightClick = null;
+        }
+
+        private void RenameToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            RenameItem(GetNodeFullPath(TreeNodeRightClick), true);
+            TreeNodeRightClick = null;
+        }
+
+        private void ReplaceToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            ReplaceItem(GetNodeFullPath(TreeNodeRightClick), true);
+            TreeNodeRightClick = null;
+        }
+
+        private void ExportToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            ExportItem(GetNodeFullPath(TreeNodeRightClick), true);
+            TreeNodeRightClick = null;
+        }
+
+        private void DirectoryListView_DragDrop(object sender, DragEventArgs e)
+        {
+            ArchiveL5Window_DragDrop(sender, e);
         }
     }
 }

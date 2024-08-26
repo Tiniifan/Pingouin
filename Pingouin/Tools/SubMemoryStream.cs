@@ -32,9 +32,12 @@ namespace Pingouin.Tools
 
         public void Read()
         {
-            ByteContent = new byte[Size];
-            BaseStream.Seek(Offset, SeekOrigin.Begin);
-            BaseStream.Read(ByteContent, 0, ByteContent.Length);
+            if (BaseStream != null)
+            {
+                ByteContent = new byte[Size];
+                BaseStream.Seek(Offset, SeekOrigin.Begin);
+                BaseStream.Read(ByteContent, 0, ByteContent.Length);
+            }
         }
 
         public void Seek()

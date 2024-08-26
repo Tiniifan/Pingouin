@@ -72,6 +72,14 @@
             this.panel1 = new System.Windows.Forms.Panel();
             this.resultTextBox = new System.Windows.Forms.TextBox();
             this.deleteTabPage = new System.Windows.Forms.TabPage();
+            this.treeViewContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.newToolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
+            this.importToolStripMenuItem3 = new System.Windows.Forms.ToolStripMenuItem();
+            this.openInANewViewToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.renameToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.deleteToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.replaceToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.exportToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.directoryContextMenuStrip.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.archiveOpenedTabControl.SuspendLayout();
@@ -81,10 +89,12 @@
             this.panel3.SuspendLayout();
             this.panel2.SuspendLayout();
             this.panel1.SuspendLayout();
+            this.treeViewContextMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // directoryListView
             // 
+            this.directoryListView.AllowDrop = true;
             this.directoryListView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
@@ -102,7 +112,10 @@
             this.directoryListView.TabIndex = 0;
             this.directoryListView.UseCompatibleStateImageBehavior = false;
             this.directoryListView.View = System.Windows.Forms.View.Details;
-            this.directoryListView.SelectedIndexChanged += new System.EventHandler(this.DirectoryListView_SelectedIndexChanged);
+            this.directoryListView.ItemDrag += new System.Windows.Forms.ItemDragEventHandler(this.DirectoryListView_ItemDrag);
+            this.directoryListView.DragDrop += new System.Windows.Forms.DragEventHandler(this.DirectoryListView_DragDrop);
+            this.directoryListView.DragOver += new System.Windows.Forms.DragEventHandler(this.DirectoryListView_DragOver);
+            this.directoryListView.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.DirectoryListView_MouseDoubleClick);
             this.directoryListView.MouseDown += new System.Windows.Forms.MouseEventHandler(this.DirectoryListView_MouseDown);
             // 
             // columnHeader1
@@ -263,6 +276,7 @@
             // 
             // importToolStripMenuItem2
             // 
+            this.importToolStripMenuItem2.Enabled = false;
             this.importToolStripMenuItem2.Name = "importToolStripMenuItem2";
             this.importToolStripMenuItem2.Size = new System.Drawing.Size(110, 22);
             this.importToolStripMenuItem2.Text = "Import";
@@ -390,11 +404,15 @@
             this.folderNameTreeView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.folderNameTreeView.ImageIndex = 0;
+            this.folderNameTreeView.ImageList = this.imageList1;
             this.folderNameTreeView.Location = new System.Drawing.Point(3, 3);
             this.folderNameTreeView.Name = "folderNameTreeView";
+            this.folderNameTreeView.SelectedImageIndex = 0;
             this.folderNameTreeView.Size = new System.Drawing.Size(378, 351);
             this.folderNameTreeView.TabIndex = 0;
             this.folderNameTreeView.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.FolderNameTreeView_AfterSelect);
+            this.folderNameTreeView.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.FolderNameTreeView_NodeMouseClick);
             // 
             // tableLayoutPanel2
             // 
@@ -436,6 +454,8 @@
             this.searchTextBox.TabIndex = 5;
             this.searchTextBox.TextChanged += new System.EventHandler(this.SearchTextBox_TextChanged);
             this.searchTextBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.SearchTextBox_KeyPress);
+            this.searchTextBox.MouseEnter += new System.EventHandler(this.SearchTextBox_MouseEnter);
+            this.searchTextBox.MouseLeave += new System.EventHandler(this.SearchTextBox_MouseLeave);
             // 
             // panel2
             // 
@@ -480,6 +500,68 @@
             this.deleteTabPage.Text = "-";
             this.deleteTabPage.UseVisualStyleBackColor = true;
             // 
+            // treeViewContextMenuStrip
+            // 
+            this.treeViewContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.newToolStripMenuItem2,
+            this.importToolStripMenuItem3,
+            this.openInANewViewToolStripMenuItem1,
+            this.renameToolStripMenuItem1,
+            this.deleteToolStripMenuItem1,
+            this.replaceToolStripMenuItem1,
+            this.exportToolStripMenuItem1});
+            this.treeViewContextMenuStrip.Name = "treeViewContextMenuStrip";
+            this.treeViewContextMenuStrip.Size = new System.Drawing.Size(178, 158);
+            // 
+            // newToolStripMenuItem2
+            // 
+            this.newToolStripMenuItem2.Name = "newToolStripMenuItem2";
+            this.newToolStripMenuItem2.Size = new System.Drawing.Size(177, 22);
+            this.newToolStripMenuItem2.Text = "New";
+            this.newToolStripMenuItem2.Click += new System.EventHandler(this.NewToolStripMenuItem2_Click);
+            // 
+            // importToolStripMenuItem3
+            // 
+            this.importToolStripMenuItem3.Name = "importToolStripMenuItem3";
+            this.importToolStripMenuItem3.Size = new System.Drawing.Size(177, 22);
+            this.importToolStripMenuItem3.Text = "Import";
+            this.importToolStripMenuItem3.Click += new System.EventHandler(this.ImportToolStripMenuItem3_Click);
+            // 
+            // openInANewViewToolStripMenuItem1
+            // 
+            this.openInANewViewToolStripMenuItem1.Name = "openInANewViewToolStripMenuItem1";
+            this.openInANewViewToolStripMenuItem1.Size = new System.Drawing.Size(177, 22);
+            this.openInANewViewToolStripMenuItem1.Text = "Open in a new view";
+            this.openInANewViewToolStripMenuItem1.Click += new System.EventHandler(this.OpenInANewViewToolStripMenuItem1_Click);
+            // 
+            // renameToolStripMenuItem1
+            // 
+            this.renameToolStripMenuItem1.Name = "renameToolStripMenuItem1";
+            this.renameToolStripMenuItem1.Size = new System.Drawing.Size(177, 22);
+            this.renameToolStripMenuItem1.Text = "Rename";
+            this.renameToolStripMenuItem1.Click += new System.EventHandler(this.RenameToolStripMenuItem1_Click);
+            // 
+            // deleteToolStripMenuItem1
+            // 
+            this.deleteToolStripMenuItem1.Name = "deleteToolStripMenuItem1";
+            this.deleteToolStripMenuItem1.Size = new System.Drawing.Size(177, 22);
+            this.deleteToolStripMenuItem1.Text = "Delete";
+            this.deleteToolStripMenuItem1.Click += new System.EventHandler(this.DeleteToolStripMenuItem1_Click);
+            // 
+            // replaceToolStripMenuItem1
+            // 
+            this.replaceToolStripMenuItem1.Name = "replaceToolStripMenuItem1";
+            this.replaceToolStripMenuItem1.Size = new System.Drawing.Size(177, 22);
+            this.replaceToolStripMenuItem1.Text = "Replace";
+            this.replaceToolStripMenuItem1.Click += new System.EventHandler(this.ReplaceToolStripMenuItem1_Click);
+            // 
+            // exportToolStripMenuItem1
+            // 
+            this.exportToolStripMenuItem1.Name = "exportToolStripMenuItem1";
+            this.exportToolStripMenuItem1.Size = new System.Drawing.Size(177, 22);
+            this.exportToolStripMenuItem1.Text = "Export";
+            this.exportToolStripMenuItem1.Click += new System.EventHandler(this.ExportToolStripMenuItem1_Click);
+            // 
             // PingouinWindow
             // 
             this.AllowDrop = true;
@@ -507,6 +589,7 @@
             this.panel2.ResumeLayout(false);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
+            this.treeViewContextMenuStrip.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -556,6 +639,14 @@
         private System.Windows.Forms.Panel panel2;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
+        private System.Windows.Forms.ContextMenuStrip treeViewContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem newToolStripMenuItem2;
+        private System.Windows.Forms.ToolStripMenuItem importToolStripMenuItem3;
+        private System.Windows.Forms.ToolStripMenuItem openInANewViewToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem deleteToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem replaceToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem exportToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem renameToolStripMenuItem1;
     }
 }
 

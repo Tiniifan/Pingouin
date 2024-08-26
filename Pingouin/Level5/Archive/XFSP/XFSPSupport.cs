@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Pingouin.Level5.Archive.XPCK
+namespace Pingouin.Level5.Archive.XFSP
 {
-    public class XPCKSupport
+    public class XFSPSupport
     {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct Header
         {
-            public UInt32 Magic;
+            public uint Magic;
             public byte fc1;
             public byte fc2;
             public ushort tmp1;
@@ -30,7 +30,7 @@ namespace Pingouin.Level5.Archive.XPCK
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct FileEntry
         {
-            public uint Crc32;
+            public short Unk;
             public ushort NameOffset;
             public ushort tmp;
             public ushort tmp2;

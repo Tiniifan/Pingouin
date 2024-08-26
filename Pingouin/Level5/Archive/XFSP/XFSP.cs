@@ -9,31 +9,32 @@ using Pingouin.Level5.Compression;
 using Pingouin.Level5.Compression.NoCompression;
 using Pingouin.Level5.Compression.ZLib;
 using Pingouin.Level5.Compression.LZ10;
+using Pingouin.Level5.Archive.XPCK;
 
-namespace Pingouin.Level5.Archive.XPCK
+namespace Pingouin.Level5.Archive.XFSP
 {
-    public class XPCK : IArchive
+    public class XFSP : IArchive
     {
-        public string Name => "XPCK";
+        public string Name => "XFSP";
 
         public Stream BaseStream;
 
         public VirtualDirectory Directory { get; set; }
 
-        public XPCKSupport.Header Header;
+        public XFSPSupport.Header Header;
 
-        public XPCK()
+        public XFSP()
         {
             Directory = new VirtualDirectory("/");
         }
 
-        public XPCK(Stream stream)
+        public XFSP(Stream stream)
         {
             BaseStream = stream;
             Directory = Open();
         }
 
-        public XPCK(byte[] fileByteArray)
+        public XFSP(byte[] fileByteArray)
         {
             BaseStream = new MemoryStream(fileByteArray);
             Directory = Open();
@@ -44,11 +45,11 @@ namespace Pingouin.Level5.Archive.XPCK
             VirtualDirectory folder = new VirtualDirectory();
 
             BinaryDataReader data = new BinaryDataReader(BaseStream);
-            Header = data.ReadStruct<XPCKSupport.Header>();
+            Header = data.ReadStruct<XFSPSupport.Header>();
 
             // File Entry
             data.Seek(Header.FileInfoOffset);
-            XPCKSupport.FileEntry[] entries = data.ReadMultipleStruct<XPCKSupport.FileEntry>(Header.FileCount);
+            XFSPSupport.FileEntry[] entries = data.ReadMultipleStruct<XFSPSupport.FileEntry>(Header.FileCount);
 
             // Name
             data.Seek(Header.FilenameTableOffset);
@@ -119,7 +120,7 @@ namespace Pingouin.Level5.Archive.XPCK
 
                     fileOffset.Add(file.Key, ((int)offset, shift));
 
-                    bytesWritten += newOffset- offset;
+                    bytesWritten += newOffset - offset;
                     progressBar.Value = (int)((double)bytesWritten / totalBytes * 100);
                 }
 
@@ -201,12 +202,12 @@ namespace Pingouin.Level5.Archive.XPCK
                 header.Magic = 0x4B435058;
                 header.fc1 = Convert.ToByte(low);
                 header.fc2 = Convert.ToByte(hight);
-                header.tmp1 = (ushort) (fileEntriesOffset >> 2);
+                header.tmp1 = (ushort)(fileEntriesOffset >> 2);
                 header.tmp2 = (ushort)(fileNameTableOffset >> 2);
                 header.tmp3 = (ushort)(dataOffset >> 2);
                 header.tmp4 = (ushort)(fileEntriesSize >> 2);
                 header.tmp5 = (ushort)(fileNameTableSize >> 2);
-                header.tmp6 = (uint) (dataSize >> 2);
+                header.tmp6 = (uint)(dataSize >> 2);
                 writer.Seek(0);
                 writer.WriteStruct(header);
             }

@@ -45,6 +45,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -56,7 +57,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Level5\Archive\Archiver.cs" />
     <Compile Include="Level5\Archive\IArchive.cs" />
+    <Compile Include="Level5\Archive\XFSP\XFSP.cs" />
+    <Compile Include="Level5\Archive\XFSP\XFSPSupport.cs" />
     <Compile Include="Level5\Archive\XPCK\XPCK.cs" />
     <Compile Include="Level5\Archive\XPCK\XPCKSupport.cs" />
     <Compile Include="PingouinWindow.cs">
