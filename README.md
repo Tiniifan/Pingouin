@@ -1,4 +1,4 @@
-# [Pingouin](https://github.com/Tiniifan/Pingouin/releases/latest) <img src="https://github.com/Tiniifan/Pingouin/blob/main/Pingouin/Icon.png" alt="Logo" width="4%">
+# [Pingouin](https://github.com/Tiniifan/Pingouin/releases/latest) <img src="https://github.com/Tiniifan/Pingouin/blob/main/Pingouin/Icon.png" alt="Logo" width="7%">
 __________________________________________________________________________
 
 **What is it?**
