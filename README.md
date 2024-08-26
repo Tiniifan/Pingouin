@@ -1,4 +1,4 @@
-# [Pingouin](https://github.com/Tiniifan/Pingouin/releases/latest)
+# [Pingouin](https://github.com/Tiniifan/Pingouin/releases/latest) <img src="https://github.com/Tiniifan/Pingouin/blob/main/Pingouin/Icon.png" alt="Logo" width="4%">
 __________________________________________________________________________
 
 **What is it?**
@@ -9,10 +9,12 @@ An archive refers to a single file that serves as a container for bundling toget
 
 **Supported files**
 - XFSA (.fa)
-- XPCK (.xb, .xc, .pck) 
+- XPCK (.xb, .xc, .pck)
+- XFSP (XPCK Alt)
+- ZIP
 
 **Screenshots**
 
-![](https://i.imgur.com/Yevsihx.png)
+![image](https://github.com/user-attachments/assets/1e851e8f-3a2f-4b74-89aa-b74340c257a6)
 
 [Direct Download Link](https://github.com/Tiniifan/Pingouin/releases/latest/download/Pingouin.zip)
