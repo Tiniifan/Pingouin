@@ -378,7 +378,7 @@ namespace Pingouin
             }
             else
             {
-                if (ArchiveOpened.Name == "ARC0")
+                if (ArchiveOpened.Name == "ARC0" || ArchiveOpened.Name == "XFSA")
                 {
                     currentDirectory.AddFolder(directoryName);
                     currentDirectory = currentDirectory.GetFolder(directoryName);
@@ -461,7 +461,7 @@ namespace Pingouin
         {
             if (isDirectory)
             {
-                string folderName = Interaction.InputBox("Enter folder name:", "Rename Folder");
+                string folderName = Interaction.InputBox("Enter folder name:", "Rename Folder", Path.GetFileName(directoryPath));
 
                 if (!string.IsNullOrWhiteSpace(folderName))
                 {
@@ -481,7 +481,7 @@ namespace Pingouin
             }
             else
             {
-                string fileName = Interaction.InputBox("Enter file name:", "Rename File");
+                string fileName = Interaction.InputBox("Enter file name:", "Rename File", Path.GetFileName(directoryPath));
 
                 if (!string.IsNullOrWhiteSpace(fileName))
                 {
@@ -508,7 +508,7 @@ namespace Pingouin
         {
             if (isDirectory)
             {
-                if (ArchiveOpened.Name == "ARC0")
+                if (ArchiveOpened.Name == "ARC0" || ArchiveOpened.Name == "XFSA")
                 {
                     ImportFolder(directoryPath, isDirectory);
                 }
@@ -853,7 +853,7 @@ namespace Pingouin
             {
                 SelectedItemContextMenuStrip = null;
 
-                folderToolStripMenuItem.Enabled = ArchiveOpened.Name == "ARC0";
+                folderToolStripMenuItem.Enabled = ArchiveOpened.Name == "ARC0" || ArchiveOpened.Name == "XFSA";
                 filesToolStripMenuItem.Enabled = true;
 
                 renameToolStripMenuItem.Enabled = false;
@@ -977,7 +977,7 @@ namespace Pingouin
                 saveFileDialog.FileName = Path.GetFileName(openFileDialog1.FileName);
                 saveFileDialog.Title = "Save Level 5 Archive file";
 
-                if (ArchiveOpened.Name == "ARC0")
+                if (ArchiveOpened.Name == "ARC0" || ArchiveOpened.Name == "XFSA")
                 {
                     saveFileDialog.Filter = "XFSA (*.fa)|*.fa";
                 }
@@ -1143,7 +1143,7 @@ namespace Pingouin
                     subDirectory = currentDirectory.GetFolder(directory.Name);
                     subDirectory.Color = Color.Orange;
                 }
-                else if (ArchiveOpened.Name == "ARC0")
+                else if (ArchiveOpened.Name == "ARC0" || ArchiveOpened.Name == "XFSA")
                 {
                     currentDirectory.AddFolder(directory.Name);
                     subDirectory = currentDirectory.GetFolder(directory.Name);

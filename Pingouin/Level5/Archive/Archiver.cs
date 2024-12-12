@@ -37,10 +37,14 @@ namespace Pingouin.Level5.Archive
             }
 
             string magic = Encoding.UTF8.GetString(magicBytes);
-            if (magic == "ARC0" || magic == "XFSA")
+            if (magic == "ARC0")
             {
                 stream.Seek(0, SeekOrigin.Begin);
                 return new ARC0.ARC0(stream);
+            } else if (magic == "XFSA")
+            {
+                stream.Seek(0, SeekOrigin.Begin);
+                return new XFSA.XFSA(stream);
             }
             else if (magic == "XFSP")
             {

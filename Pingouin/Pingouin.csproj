@@ -59,6 +59,8 @@
   <ItemGroup>
     <Compile Include="Level5\Archive\Archiver.cs" />
     <Compile Include="Level5\Archive\IArchive.cs" />
+    <Compile Include="Level5\Archive\XFSA\XFSA.cs" />
+    <Compile Include="Level5\Archive\XFSA\XFSASupport.cs" />
     <Compile Include="Level5\Archive\XFSP\XFSP.cs" />
     <Compile Include="Level5\Archive\XFSP\XFSPSupport.cs" />
     <Compile Include="Level5\Archive\XPCK\XPCK.cs" />
@@ -116,5 +118,6 @@
   <ItemGroup>
     <Content Include="Icon.ico" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
