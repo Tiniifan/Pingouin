@@ -848,6 +848,8 @@ namespace Pingouin
                 renameToolStripMenuItem.Enabled = true;
                 deleteToolStripMenuItem.Enabled = true;
                 replaceToolStripMenuItem.Enabled = true;
+
+                changePrefixForFilesToolStripMenuItem.Enabled = selectedItemType == "Folder";
             }
             else
             {
@@ -859,6 +861,8 @@ namespace Pingouin
                 renameToolStripMenuItem.Enabled = false;
                 deleteToolStripMenuItem.Enabled = false;
                 replaceToolStripMenuItem.Enabled = true;
+
+                changePrefixForFilesToolStripMenuItem.Enabled = true;
             }
         }
 
@@ -1539,6 +1543,51 @@ namespace Pingouin
         private void DirectoryListView_DragDrop(object sender, DragEventArgs e)
         {
             ArchiveL5Window_DragDrop(sender, e);
+        }
+
+        private void ChangePrefixForFilesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string directoryPath = directoryTextBox.Text;
+
+            if (SelectedItemContextMenuStrip != null)
+            {
+                if (SelectedItemContextMenuStrip.Tag.ToString() != "Folder")
+                {
+                    MessageBox.Show("You cannot select a file for this option.");
+                    return;
+                }
+
+                directoryPath += SelectedItemContextMenuStrip.Text;
+            }
+
+            string newPrefix = Interaction.InputBox("Enter new prefix name:", "Change Prefix for files", Path.GetFileName(directoryPath));
+
+            if (!string.IsNullOrWhiteSpace(newPrefix))
+            {
+                VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryPath);
+                string[] filenames = currentDirectory.Files.Keys.ToArray();
+
+                for (int i = 0; i < filenames.Count(); i++)
+                {
+                    string filename = filenames[i];
+
+                    // Check if separator exists
+                    if (filename.Contains("_"))
+                    {
+                        var oldItem = currentDirectory.Files[filename];
+                        currentDirectory.Files.Remove(filename);
+
+                        // Get everything after the first separator "_"
+                        int separatorIndex = filename.IndexOf("_");
+                        string suffixAfterSeparator = filename.Substring(separatorIndex);
+                        string newFilename = newPrefix + suffixAfterSeparator;
+
+                        currentDirectory.Files.Add(newFilename, oldItem);
+                    }
+                }
+            }
+
+            DrawFolder(directoryTextBox.Text);
         }
     }
 }

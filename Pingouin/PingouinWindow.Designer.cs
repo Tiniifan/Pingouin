@@ -80,6 +80,7 @@
             this.deleteToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.replaceToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.exportToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.changePrefixForFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.directoryContextMenuStrip.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.archiveOpenedTabControl.SuspendLayout();
@@ -137,9 +138,10 @@
             this.renameToolStripMenuItem,
             this.deleteToolStripMenuItem,
             this.replaceToolStripMenuItem,
-            this.exportToolStripMenuItem});
+            this.exportToolStripMenuItem,
+            this.changePrefixForFilesToolStripMenuItem});
             this.directoryContextMenuStrip.Name = "directoryContextMenuStrip";
-            this.directoryContextMenuStrip.Size = new System.Drawing.Size(118, 136);
+            this.directoryContextMenuStrip.Size = new System.Drawing.Size(190, 180);
             this.directoryContextMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.DirectoryContextMenuStrip_Opening);
             // 
             // folderToolStripMenuItem
@@ -149,27 +151,27 @@
             this.importToolStripMenuItem,
             this.openInANewViewToolStripMenuItem});
             this.folderToolStripMenuItem.Name = "folderToolStripMenuItem";
-            this.folderToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.folderToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             this.folderToolStripMenuItem.Text = "Folder";
             // 
             // newToolStripMenuItem
             // 
             this.newToolStripMenuItem.Name = "newToolStripMenuItem";
-            this.newToolStripMenuItem.Size = new System.Drawing.Size(177, 22);
+            this.newToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.newToolStripMenuItem.Text = "New";
             this.newToolStripMenuItem.Click += new System.EventHandler(this.NewToolStripMenuItem_Click);
             // 
             // importToolStripMenuItem
             // 
             this.importToolStripMenuItem.Name = "importToolStripMenuItem";
-            this.importToolStripMenuItem.Size = new System.Drawing.Size(177, 22);
+            this.importToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.importToolStripMenuItem.Text = "Import";
             this.importToolStripMenuItem.Click += new System.EventHandler(this.ImportToolStripMenuItem_Click);
             // 
             // openInANewViewToolStripMenuItem
             // 
             this.openInANewViewToolStripMenuItem.Name = "openInANewViewToolStripMenuItem";
-            this.openInANewViewToolStripMenuItem.Size = new System.Drawing.Size(177, 22);
+            this.openInANewViewToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.openInANewViewToolStripMenuItem.Text = "Open in a new view";
             this.openInANewViewToolStripMenuItem.Click += new System.EventHandler(this.OpenInANewViewToolStripMenuItem_Click);
             // 
@@ -178,41 +180,41 @@
             this.filesToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.importToolStripMenuItem1});
             this.filesToolStripMenuItem.Name = "filesToolStripMenuItem";
-            this.filesToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.filesToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             this.filesToolStripMenuItem.Text = "Files";
             // 
             // importToolStripMenuItem1
             // 
             this.importToolStripMenuItem1.Name = "importToolStripMenuItem1";
-            this.importToolStripMenuItem1.Size = new System.Drawing.Size(110, 22);
+            this.importToolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
             this.importToolStripMenuItem1.Text = "Import";
             this.importToolStripMenuItem1.Click += new System.EventHandler(this.ImportFilesToolStripMenuItem1_Click);
             // 
             // renameToolStripMenuItem
             // 
             this.renameToolStripMenuItem.Name = "renameToolStripMenuItem";
-            this.renameToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.renameToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             this.renameToolStripMenuItem.Text = "Rename";
             this.renameToolStripMenuItem.Click += new System.EventHandler(this.RenameToolStripMenuItem_Click);
             // 
             // deleteToolStripMenuItem
             // 
             this.deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
-            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             this.deleteToolStripMenuItem.Text = "Delete";
             this.deleteToolStripMenuItem.Click += new System.EventHandler(this.DeleteToolStripMenuItem_Click);
             // 
             // replaceToolStripMenuItem
             // 
             this.replaceToolStripMenuItem.Name = "replaceToolStripMenuItem";
-            this.replaceToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.replaceToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             this.replaceToolStripMenuItem.Text = "Replace";
             this.replaceToolStripMenuItem.Click += new System.EventHandler(this.ReplaceToolStripMenuItem_Click);
             // 
             // exportToolStripMenuItem
             // 
             this.exportToolStripMenuItem.Name = "exportToolStripMenuItem";
-            this.exportToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.exportToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             this.exportToolStripMenuItem.Text = "Export";
             this.exportToolStripMenuItem.Click += new System.EventHandler(this.ExportToolStripMenuItem_Click);
             // 
@@ -562,6 +564,13 @@
             this.exportToolStripMenuItem1.Text = "Export";
             this.exportToolStripMenuItem1.Click += new System.EventHandler(this.ExportToolStripMenuItem1_Click);
             // 
+            // changePrefixForFilesToolStripMenuItem
+            // 
+            this.changePrefixForFilesToolStripMenuItem.Name = "changePrefixForFilesToolStripMenuItem";
+            this.changePrefixForFilesToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
+            this.changePrefixForFilesToolStripMenuItem.Text = "Change Prefix for files";
+            this.changePrefixForFilesToolStripMenuItem.Click += new System.EventHandler(this.ChangePrefixForFilesToolStripMenuItem_Click);
+            // 
             // PingouinWindow
             // 
             this.AllowDrop = true;
@@ -647,6 +656,7 @@
         private System.Windows.Forms.ToolStripMenuItem replaceToolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem exportToolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem renameToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem changePrefixForFilesToolStripMenuItem;
     }
 }
 
