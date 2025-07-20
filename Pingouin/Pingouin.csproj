@@ -57,6 +57,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Level5\Archive\ARC0\ARC0Reader.cs" />
+    <Compile Include="Level5\Archive\ARC0\ARC0Writer.cs" />
+    <Compile Include="Level5\Archive\ARC0\ARC0WriterOptimized.cs" />
     <Compile Include="Level5\Archive\Archiver.cs" />
     <Compile Include="Level5\Archive\IArchive.cs" />
     <Compile Include="Level5\Archive\XFSA\XFSA.cs" />

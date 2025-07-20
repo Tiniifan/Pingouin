@@ -14,9 +14,9 @@ namespace Pingouin.Level5.Archive
 
         VirtualDirectory Directory { get; set; }
 
-        void Save(string path, ProgressBar progressBar);
+        void Save(string path, ProgressBar progressBar = null);
 
-        byte[] Save();
+        byte[] Save(ProgressBar progressBar = null);
 
         IArchive Close();
     }

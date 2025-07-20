@@ -5,3 +5,6 @@ Pingouin/bin/Release/temp
 Pingouin/bin/Debug/Pingouin.zip
 Pingouin/bin/Release/Pingouin.zip
 Pingouin/obj/
+bin/**/*.zip
+bin/**/*.rar
+**/packages/

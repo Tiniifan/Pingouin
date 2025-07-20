@@ -946,6 +946,9 @@ namespace Pingouin
 
         private void SaveToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            // Déclaration du chronomètre
+            System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+
             if (OpenedArchives[archiveOpenedTabControl.SelectedIndex].Item2.StartsWith("memory:/"))
             {
                 IArchive memoryArchive = OpenedArchives[archiveOpenedTabControl.SelectedIndex].Item1;
@@ -966,16 +969,23 @@ namespace Pingouin
                 if (lastSlashIndex != -1)
                 {
                     directoryPath = fullDirectoryPath.Substring(0, lastSlashIndex);
-                } else
+                }
+                else
                 {
                     directoryPath = "/";
                 }
 
                 VirtualDirectory currentDirectory = linkArchive.Directory.GetFolderFromFullPath(directoryPath);
-                currentDirectory.Files[fileName].ByteContent = memoryArchive.Save();
 
-                MessageBox.Show(fileName + " was saved!");
-            } else
+                // Démarrer le chronomètre avant la sauvegarde
+                stopwatch.Start();
+                currentDirectory.Files[fileName].ByteContent = memoryArchive.Save();
+                stopwatch.Stop();
+
+                // Afficher le temps de sauvegarde
+                MessageBox.Show($"{fileName} was saved!\nSave time: {stopwatch.ElapsedMilliseconds} ms ({stopwatch.Elapsed.TotalSeconds:F2} seconds)");
+            }
+            else
             {
                 SaveFileDialog saveFileDialog = new SaveFileDialog();
                 saveFileDialog.FileName = Path.GetFileName(openFileDialog1.FileName);
@@ -1016,8 +1026,11 @@ namespace Pingouin
                             Directory.CreateDirectory(tempPath);
                         }
 
+                        // Démarrer le chronomètre avant la sauvegarde
+                        stopwatch.Start();
                         // Save
                         ArchiveOpened.Save(tempPath + @"\" + fileName, progressBar1);
+                        stopwatch.Stop();
 
                         // Close File
                         Type archiveType = ArchiveOpened.GetType();
@@ -1042,17 +1055,21 @@ namespace Pingouin
                     }
                     else
                     {
+                        // Démarrer le chronomètre avant la sauvegarde
+                        stopwatch.Start();
                         ArchiveOpened.Save(saveFileDialog.FileName, progressBar1);
+                        stopwatch.Stop();
                     }
 
-                    MessageBox.Show("Saved!");
+                    // Afficher le temps de sauvegarde
+                    MessageBox.Show($"Saved!\nSave time: {stopwatch.ElapsedMilliseconds} ms ({stopwatch.Elapsed.TotalSeconds:F2} seconds)");
 
                     progressBar1.Visible = false;
                     backButton.Visible = true;
                     directoryTextBox.Visible = true;
                     searchTextBox.Visible = true;
                     tableLayoutPanel2.Visible = true;
-                    
+
                     DirectoryTextBox_TextChanged(sender, e);
                 }
             }
@@ -1393,7 +1410,7 @@ namespace Pingouin
 
                 VirtualDirectory currentDirectory = ArchiveOpened.Directory.GetFolderFromFullPath(directoryTextBox.Text);
                 FiltredDirectoris = currentDirectory.SearchDirectories(searchTextBox.Text);
-                FiltredFiles = currentDirectory.SearchFiles(ArchiveOpened.Directory, searchTextBox.Text);
+                FiltredFiles = currentDirectory.SearchFiles(searchTextBox.Text);
                 long fullsize = 0;
 
                 foreach (VirtualDirectory folder in FiltredDirectoris)

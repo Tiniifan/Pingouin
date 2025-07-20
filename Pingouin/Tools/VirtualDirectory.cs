@@ -18,10 +18,15 @@ namespace Pingouin.Tools
 
         public Color Color = Color.Black;
 
+        // Cache pour améliorer les performances de recherche
+        private Dictionary<string, VirtualDirectory> _folderCache;
+        private readonly object _cacheLock = new object();
+
         public VirtualDirectory()
         {
             Folders = new List<VirtualDirectory>();
             Files = new Dictionary<string, SubMemoryStream>();
+            _folderCache = new Dictionary<string, VirtualDirectory>();
         }
 
         public VirtualDirectory(string name)
@@ -29,15 +34,35 @@ namespace Pingouin.Tools
             Name = name;
             Folders = new List<VirtualDirectory>();
             Files = new Dictionary<string, SubMemoryStream>();
+            _folderCache = new Dictionary<string, VirtualDirectory>();
         }
 
         public VirtualDirectory GetFolder(string name)
         {
-            return Folders.FirstOrDefault(folder => folder.Name == name);
+            // Utilisation du cache pour éviter les recherches répétées
+            if (_folderCache.TryGetValue(name, out VirtualDirectory cachedFolder))
+            {
+                return cachedFolder;
+            }
+
+            var folder = Folders.FirstOrDefault(f => f.Name == name);
+
+            if (folder != null)
+            {
+                lock (_cacheLock)
+                {
+                    _folderCache[name] = folder;
+                }
+            }
+
+            return folder;
         }
 
         public VirtualDirectory GetFolderFromFullPath(string path)
         {
+            if (string.IsNullOrEmpty(path))
+                return this;
+
             var pathSplit = path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
             var current = this;
 
@@ -57,6 +82,9 @@ namespace Pingouin.Tools
 
         public bool IsFolderExists(string path)
         {
+            if (string.IsNullOrEmpty(path))
+                return true;
+
             var pathSplit = path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
             var current = this;
 
@@ -76,28 +104,38 @@ namespace Pingouin.Tools
 
         public List<VirtualDirectory> GetAllFolders()
         {
-            List<VirtualDirectory> allFolders = new List<VirtualDirectory>();
-
-            foreach (VirtualDirectory folder in Folders)
-            {
-                allFolders.Add(folder);
-            }
-
+            // Utilisation de la capacité initiale pour éviter les redimensionnements
+            var allFolders = new List<VirtualDirectory>(Folders.Count);
+            allFolders.AddRange(Folders);
             return allFolders;
         }
 
         public Dictionary<string, VirtualDirectory> GetAllFoldersAsDictionnary()
         {
             var directories = new Dictionary<string, VirtualDirectory> { { Name + "/", this } };
+            var stack = new Stack<(VirtualDirectory folder, string parentPath)>();
+
+            // Initialiser la pile avec les dossiers de niveau 1
             foreach (var folder in Folders)
             {
-                foreach (var subDirectory in folder.GetAllFoldersAsDictionnary())
+                stack.Push((folder, Name + "/"));
+            }
+
+            // Parcours itératif au lieu de récursif pour éviter les stack overflow
+            while (stack.Count > 0)
+            {
+                var (currentFolder, parentPath) = stack.Pop();
+                var currentPath = parentPath + currentFolder.Name + "/";
+
+                if (!directories.ContainsKey(currentPath))
                 {
-                    var key = Name + "/" + subDirectory.Key;
-                    if (!directories.ContainsKey(key))
-                    {
-                        directories.Add(key, subDirectory.Value);
-                    }
+                    directories.Add(currentPath, currentFolder);
+                }
+
+                // Ajouter les sous-dossiers à la pile
+                foreach (var subFolder in currentFolder.Folders)
+                {
+                    stack.Push((subFolder, currentPath));
                 }
             }
 
@@ -106,6 +144,9 @@ namespace Pingouin.Tools
 
         public byte[] GetFileFromFullPath(string path)
         {
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("Path cannot be null or empty");
+
             var pathSplit = path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
             var fileName = pathSplit[pathSplit.Length - 1];
             var current = this;
@@ -121,10 +162,8 @@ namespace Pingouin.Tools
                 }
             }
 
-            if (current.Files.ContainsKey(fileName))
+            if (current.Files.TryGetValue(fileName, out SubMemoryStream subMemoryStream))
             {
-                SubMemoryStream subMemoryStream = current.Files[fileName];
-
                 // Fill subMemoryStream
                 if (subMemoryStream.ByteContent == null)
                 {
@@ -141,19 +180,29 @@ namespace Pingouin.Tools
 
         public Dictionary<string, SubMemoryStream> GetAllFiles()
         {
-            Dictionary<string, SubMemoryStream> allFiles = new Dictionary<string, SubMemoryStream>();
+            var allFiles = new Dictionary<string, SubMemoryStream>();
+            var stack = new Stack<(VirtualDirectory folder, string path)>();
+            stack.Push((this, Name));
 
-            foreach (KeyValuePair<string, SubMemoryStream> file in Files)
+            // Parcours itératif pour éviter les problèmes de récursion
+            while (stack.Count > 0)
             {
-                allFiles.Add(Name + "/" + file.Key, file.Value);
-            }
+                var (currentFolder, currentPath) = stack.Pop();
 
-            foreach (VirtualDirectory folder in Folders)
-            {
-                Dictionary<string, SubMemoryStream> subFiles = folder.GetAllFiles();
-                foreach (KeyValuePair<string, SubMemoryStream> file in subFiles)
+                // Ajouter les fichiers du dossier actuel
+                foreach (var file in currentFolder.Files)
                 {
-                    allFiles.Add(Name + "/" + file.Key, file.Value);
+                    var filePath = currentPath + "/" + file.Key;
+                    if (!allFiles.ContainsKey(filePath))
+                    {
+                        allFiles.Add(filePath, file.Value);
+                    }
+                }
+
+                // Ajouter les sous-dossiers à la pile
+                foreach (var subFolder in currentFolder.Folders)
+                {
+                    stack.Push((subFolder, currentPath + "/" + subFolder.Name));
                 }
             }
 
@@ -162,38 +211,70 @@ namespace Pingouin.Tools
 
         public void AddFile(string name, SubMemoryStream data)
         {
-            Files.Add(name, data);
+            Files[name] = data; // Utiliser l'indexeur pour éviter les exceptions si la clé existe déjà
         }
 
         public void AddFolder(string name)
         {
-            Folders.Add(new VirtualDirectory(name));
+            var newFolder = new VirtualDirectory(name);
+            Folders.Add(newFolder);
+
+            // Invalider le cache
+            lock (_cacheLock)
+            {
+                _folderCache.Clear();
+            }
         }
 
         public void AddFolder(VirtualDirectory folder)
         {
             Folders.Add(folder);
+
+            // Invalider le cache
+            lock (_cacheLock)
+            {
+                _folderCache.Clear();
+            }
         }
 
         public long GetSize()
         {
             long size = 0;
 
-            foreach (SubMemoryStream file in Files.Values)
+            // Utiliser Parallel.ForEach pour les fichiers si la collection est grande
+            if (Files.Count > 100)
             {
-                if (file.ByteContent == null)
+                var fileSizes = new ConcurrentBag<long>();
+                Parallel.ForEach(Files.Values, file =>
                 {
-                    size += file.Size;
-                }
-                else
+                    fileSizes.Add(file.ByteContent?.Length ?? file.Size);
+                });
+                size = fileSizes.Sum();
+            }
+            else
+            {
+                foreach (var file in Files.Values)
                 {
-                    size += file.ByteContent.Length;
+                    size += file.ByteContent?.Length ?? file.Size;
                 }
             }
 
-            foreach (VirtualDirectory folder in Folders)
+            // Calcul parallèle pour les dossiers
+            if (Folders.Count > 1)
             {
-                size += folder.GetSize();
+                var folderSizes = new ConcurrentBag<long>();
+                Parallel.ForEach(Folders, folder =>
+                {
+                    folderSizes.Add(folder.GetSize());
+                });
+                size += folderSizes.Sum();
+            }
+            else
+            {
+                foreach (var folder in Folders)
+                {
+                    size += folder.GetSize();
+                }
             }
 
             return size;
@@ -202,7 +283,7 @@ namespace Pingouin.Tools
         public void Reorganize()
         {
             // Retrieve all folders and order them by name
-            VirtualDirectory[] folders = GetAllFolders().OrderBy(x => x.Name).ToArray();
+            var folders = GetAllFolders().OrderBy(x => x.Name).ToArray();
 
             // Iterate through each folder path
             foreach (var folderPath in folders)
@@ -229,10 +310,10 @@ namespace Pingouin.Tools
             // Reorganize folders with multiple levels
             folders = GetAllFolders().OrderBy(x => x.Name).ToArray();
             var result = new VirtualDirectory("");
-            result.Files = Files;
+            result.Files = new Dictionary<string, SubMemoryStream>(Files); // Copie optimisée
 
             // Iterate through each folder in ordered folders
-            foreach (var folder in folders.Where(x => x.Name != ""))
+            foreach (var folder in folders.Where(x => !string.IsNullOrEmpty(x.Name)))
             {
                 // Split the folder name into individual parts
                 var path = folder.Name.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
@@ -245,8 +326,10 @@ namespace Pingouin.Tools
                     if (current.GetFolder(path[i]) == null)
                     {
                         // Create a new folder and assign files
-                        VirtualDirectory newFolder = new VirtualDirectory(path[i]);
-                        newFolder.Files = folder.Files;
+                        var newFolder = new VirtualDirectory(path[i])
+                        {
+                            Files = new Dictionary<string, SubMemoryStream>(folder.Files)
+                        };
                         current.AddFolder(newFolder);
                     }
 
@@ -258,19 +341,39 @@ namespace Pingouin.Tools
             // Update the files and folders in the current virtual directory
             Files = result.Files;
             Folders = result.Folders;
+
+            // Invalider le cache après la réorganisation
+            lock (_cacheLock)
+            {
+                _folderCache.Clear();
+            }
         }
 
         public void SortAlphabetically()
         {
-            Folders.Sort((x, y) => x.Name.CompareTo(y.Name));
+            // Tri plus efficace avec StringComparer
+            Folders.Sort((x, y) => StringComparer.OrdinalIgnoreCase.Compare(x.Name, y.Name));
 
-            foreach (VirtualDirectory folder in Folders)
+            // Parallélisation pour les gros dossiers
+            if (Folders.Count > 10)
             {
-                folder.SortAlphabetically();
+                Parallel.ForEach(Folders, folder => folder.SortAlphabetically());
+            }
+            else
+            {
+                foreach (var folder in Folders)
+                {
+                    folder.SortAlphabetically();
+                }
             }
 
-            var sortedFiles = Files.OrderBy(file => file.Key).ToDictionary(pair => pair.Key, pair => pair.Value);
-            Files = sortedFiles;
+            // Tri des fichiers plus efficace
+            if (Files.Count > 1)
+            {
+                var sortedFiles = Files.OrderBy(file => file.Key, StringComparer.OrdinalIgnoreCase)
+                                      .ToDictionary(pair => pair.Key, pair => pair.Value);
+                Files = sortedFiles;
+            }
         }
 
         public void Print()
@@ -280,110 +383,138 @@ namespace Pingouin.Tools
 
         public void Print(VirtualDirectory directory, int level = 0)
         {
-            string indentation = new string('\t', level);
+            var indentation = new string('\t', level);
             Console.WriteLine($"{indentation}/{directory.Name}: ");
 
-            foreach (VirtualDirectory subDirectory in directory.Folders)
+            foreach (var subDirectory in directory.Folders)
             {
                 Print(subDirectory, level + 1);
             }
 
-            foreach (KeyValuePair<string, SubMemoryStream> files in directory.Files)
+            foreach (var files in directory.Files)
             {
-                indentation = new string('\t', level + 1);
-                Console.WriteLine($"{indentation}{files.Key}");
+                var fileIndentation = new string('\t', level + 1);
+                Console.WriteLine($"{fileIndentation}{files.Key}");
             }
         }
 
         public List<VirtualDirectory> SearchDirectories(string directoryName)
         {
-            List<VirtualDirectory> matchingFolders = new List<VirtualDirectory>();
+            var matchingFolders = new ConcurrentBag<VirtualDirectory>();
 
             // Search in the current folder
-            if (Name != null && Name.IndexOf(directoryName, StringComparison.OrdinalIgnoreCase) != -1)
+            if (!string.IsNullOrEmpty(Name) && Name.IndexOf(directoryName, StringComparison.OrdinalIgnoreCase) != -1)
             {
                 matchingFolders.Add(this);
             }
 
-            // Use Partitioner to partition the workload
-            var folderPartitions = Partitioner.Create(Folders, true);
-
-            // Parallel recursive call for each subfolder
-            Parallel.ForEach(folderPartitions, subFolder =>
+            // Parallélisation conditionnelle
+            if (Folders.Count > 5)
             {
-                var subFolderMatches = subFolder.SearchDirectories(directoryName);
-                if (subFolderMatches.Count > 0)
+                var folderPartitions = Partitioner.Create(Folders, true);
+                Parallel.ForEach(folderPartitions, subFolder =>
                 {
-                    lock (matchingFolders)
+                    var subFolderMatches = subFolder.SearchDirectories(directoryName);
+                    foreach (var match in subFolderMatches)
                     {
-                        matchingFolders.AddRange(subFolderMatches);
+                        matchingFolders.Add(match);
+                    }
+                });
+            }
+            else
+            {
+                foreach (var subFolder in Folders)
+                {
+                    var subFolderMatches = subFolder.SearchDirectories(directoryName);
+                    foreach (var match in subFolderMatches)
+                    {
+                        matchingFolders.Add(match);
                     }
                 }
-            });
+            }
 
-            return matchingFolders;
+            return matchingFolders.ToList();
         }
 
         public List<KeyValuePair<string, SubMemoryStream>> SearchFiles(string fileName)
         {
-            List<KeyValuePair<string, SubMemoryStream>> matchingFiles = new List<KeyValuePair<string, SubMemoryStream>>();
+            var matchingFiles = new ConcurrentBag<KeyValuePair<string, SubMemoryStream>>();
 
-            // Search in the current folder
-            foreach (var file in Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1))
+            // Search in the current folder - optimisé avec LINQ
+            var currentMatches = Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1);
+            foreach (var match in currentMatches)
             {
-                matchingFiles.Add(file);
+                matchingFiles.Add(match);
             }
 
-            // Use Partitioner to partition the workload
-            var folderPartitions = Partitioner.Create(Folders, true);
-
-            // Parallel recursive call for each subfolder
-            Parallel.ForEach(folderPartitions, subFolder =>
+            // Parallélisation conditionnelle
+            if (Folders.Count > 5)
             {
-                var subFolderMatches = subFolder.SearchFiles(fileName);
-                if (subFolderMatches.Count > 0)
+                var folderPartitions = Partitioner.Create(Folders, true);
+                Parallel.ForEach(folderPartitions, subFolder =>
                 {
-                    lock (matchingFiles)
+                    var subFolderMatches = subFolder.SearchFiles(fileName);
+                    foreach (var match in subFolderMatches)
                     {
-                        matchingFiles.AddRange(subFolderMatches);
+                        matchingFiles.Add(match);
+                    }
+                });
+            }
+            else
+            {
+                foreach (var subFolder in Folders)
+                {
+                    var subFolderMatches = subFolder.SearchFiles(fileName);
+                    foreach (var match in subFolderMatches)
+                    {
+                        matchingFiles.Add(match);
                     }
                 }
-            });
+            }
 
-            return matchingFiles;
+            return matchingFiles.ToList();
         }
 
         public List<KeyValuePair<string, SubMemoryStream>> SearchFiles(VirtualDirectory root, string fileName)
         {
-            List<KeyValuePair<string, SubMemoryStream>> matchingFiles = new List<KeyValuePair<string, SubMemoryStream>>();
+            var matchingFiles = new ConcurrentBag<KeyValuePair<string, SubMemoryStream>>();
 
             string fullPath = GetFullPath(root);
 
             // Search in the current folder
-            foreach (var file in Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1))
+            var currentMatches = Files.Where(x => x.Key.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) != -1);
+            foreach (var file in currentMatches)
             {
                 matchingFiles.Add(new KeyValuePair<string, SubMemoryStream>("/" + fullPath + "/" + file.Key, file.Value));
             }
 
-            // Use Partitioner to partition the workload
-            var folderPartitions = Partitioner.Create(Folders, true);
-
-            // Parallel recursive call for each subfolder
-            Parallel.ForEach(folderPartitions, subFolder =>
+            // Parallélisation conditionnelle
+            if (Folders.Count > 5)
             {
-                var subFolderMatches = subFolder.SearchFiles(root, fileName);
-                if (subFolderMatches.Count > 0)
+                var folderPartitions = Partitioner.Create(Folders, true);
+                Parallel.ForEach(folderPartitions, subFolder =>
                 {
-                    lock (matchingFiles)
+                    var subFolderMatches = subFolder.SearchFiles(root, fileName);
+                    foreach (var match in subFolderMatches)
                     {
-                        matchingFiles.AddRange(subFolderMatches);
+                        matchingFiles.Add(match);
+                    }
+                });
+            }
+            else
+            {
+                foreach (var subFolder in Folders)
+                {
+                    var subFolderMatches = subFolder.SearchFiles(root, fileName);
+                    foreach (var match in subFolderMatches)
+                    {
+                        matchingFiles.Add(match);
                     }
                 }
-            });
+            }
 
-            return matchingFiles;
+            return matchingFiles.ToList();
         }
-
 
         public string GetFullPath(VirtualDirectory root)
         {
@@ -392,27 +523,26 @@ namespace Pingouin.Tools
 
         public string GetFullPath(VirtualDirectory currentDirectory, VirtualDirectory searchedDirectory)
         {
-            foreach (VirtualDirectory directory in currentDirectory.Folders)
-            {
-                if (directory == searchedDirectory)
-                {
-                    // The searched directory has been found, return its name
-                    return directory.Name;
-                }
-                else
-                {
-                    // The searched directory has not been found in this subdirectory, recursion
-                    string pathInSubdirectory = GetFullPath(directory, searchedDirectory);
+            // Utilisation d'une pile pour éviter la récursion profonde
+            var stack = new Stack<(VirtualDirectory dir, string path)>();
+            stack.Push((currentDirectory, ""));
 
-                    // If the path has been found in the subdirectory, return it
-                    if (!string.IsNullOrEmpty(pathInSubdirectory))
+            while (stack.Count > 0)
+            {
+                var (current, currentPath) = stack.Pop();
+
+                foreach (var directory in current.Folders)
+                {
+                    if (directory == searchedDirectory)
                     {
-                        return directory.Name + "/" + pathInSubdirectory;
+                        return string.IsNullOrEmpty(currentPath) ? directory.Name : currentPath + "/" + directory.Name;
                     }
+
+                    var newPath = string.IsNullOrEmpty(currentPath) ? directory.Name : currentPath + "/" + directory.Name;
+                    stack.Push((directory, newPath));
                 }
             }
 
-            // The searched directory has not been found in the current directory or its subdirectories
             return string.Empty;
         }
 
@@ -420,16 +550,36 @@ namespace Pingouin.Tools
         {
             Color = Color.Black;
 
-            foreach (KeyValuePair<string, SubMemoryStream> file in Files)
+            // Parallélisation pour les gros volumes
+            if (Files.Count > 100)
             {
-                file.Value.Color = Color.Black;
+                Parallel.ForEach(Files.Values, file =>
+                {
+                    file.Color = Color.Black;
+                });
+            }
+            else
+            {
+                foreach (var file in Files.Values)
+                {
+                    file.Color = Color.Black;
+                }
             }
 
-            foreach (VirtualDirectory subFolder in Folders)
+            if (Folders.Count > 10)
             {
-                subFolder.ResetColor();
+                Parallel.ForEach(Folders, subFolder =>
+                {
+                    subFolder.ResetColor();
+                });
+            }
+            else
+            {
+                foreach (var subFolder in Folders)
+                {
+                    subFolder.ResetColor();
+                }
             }
         }
     }
 }
-

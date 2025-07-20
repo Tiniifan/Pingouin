@@ -68,7 +68,7 @@ namespace Pingouin.Level5.Archive.XPCK
             return folder;
         }
 
-        public void Save(string fileName, ProgressBar progressBar)
+        public void Save(string fileName, ProgressBar progressBar = null)
         {
             using (FileStream stream = new FileStream(fileName, FileMode.Create, FileAccess.Write))
             {
@@ -212,7 +212,7 @@ namespace Pingouin.Level5.Archive.XPCK
             }
         }
 
-        public byte[] Save()
+        public byte[] Save(ProgressBar progressBar = null)
         {
             using (MemoryStream stream = new MemoryStream())
             {
