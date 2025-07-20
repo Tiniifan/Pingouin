@@ -1,0 +1,582 @@
+﻿<Window x:Class="Pingouin.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Pingouin.Views"
+        xmlns:viewmodels="clr-namespace:Pingouin.ViewModels"
+        xmlns:models="clr-namespace:Pingouin.Models"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        xmlns:converters="clr-namespace:Pingouin.Converters"
+        xmlns:gong="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
+        xmlns:controls="clr-namespace:Pingouin.Controls"
+        mc:Ignorable="d"
+        Title="{Binding Title}" Height="800" Width="1200"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Window.DataContext>
+        <viewmodels:MainViewModel/>
+    </Window.DataContext>
+
+    <Window.Resources>
+        <!-- Style for the custom circular progress bar. -->
+        <Style x:Key="CustomCircularProgressBarStyle" TargetType="controls:CircularProgressBar">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="controls:CircularProgressBar">
+                        <Canvas Width="100" Height="100">
+                            <!-- Background circle -->
+                            <Ellipse Width="100" Height="100"
+                                     Stroke="{DynamicResource Theme.Border.Brush}"
+                                     StrokeThickness="5"/>
+                            <!-- Progress arc -->
+                            <Path Stroke="{TemplateBinding Background}"
+                                  StrokeThickness="{TemplateBinding StrokeThickness}">
+                                <Path.Data>
+                                    <PathGeometry>
+                                        <PathFigure x:Name="fig" StartPoint="50,0">
+                                            <ArcSegment RotationAngle="0" SweepDirection="Clockwise"
+                                                        Size="50,50"
+                                                        Point="{Binding Path=Angle, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource AngleToPointConverter}}"
+                                                        IsLargeArc="{Binding Path=Angle, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource AngleToIsLargeConverter}}">
+                                            </ArcSegment>
+                                        </PathFigure>
+                                    </PathGeometry>
+                                </Path.Data>
+                            </Path>
+                            <!-- Percentage text in the center -->
+                            <Border Width="100" Height="100">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Text="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, StringFormat={}{0:0}%}"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           FontSize="{TemplateBinding FontSize}"
+                                           FontWeight="{TemplateBinding FontWeight}"/>
+                            </Border>
+                        </Canvas>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style applied to the main content area. -->
+        <Style x:Key="MainContentStyle" TargetType="Grid">
+            <Style.Triggers>
+                <!-- When saving, disable interaction with the main content without changing its visual state (like greying out). -->
+                <DataTrigger Binding="{Binding IsSaving}" Value="True">
+                    <Setter Property="IsHitTestVisible" Value="False"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Context Menus -->
+        <ContextMenu x:Key="FolderContextMenu" Style="{StaticResource Theme.AcrylicContextMenuStyle}">
+            <MenuItem Header="Open"
+                      Command="{Binding PlacementTarget.Tag.NavigateIntoSelectedItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <MenuItem Header="Open in new tab"
+                      Command="{Binding PlacementTarget.Tag.OpenItemInNewTabCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="Rename"
+                      Command="{Binding PlacementTarget.Tag.RenameItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <MenuItem Header="Delete"
+                      Command="{Binding PlacementTarget.Tag.DeleteItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <MenuItem Header="Replace"
+                      Command="{Binding PlacementTarget.Tag.ReplaceItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+            <Separator/>
+            <MenuItem Header="Export"
+                      Command="{Binding PlacementTarget.Tag.ExportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </ContextMenu>
+
+        <ContextMenu x:Key="FileContextMenu" Style="{StaticResource Theme.AcrylicContextMenuStyle}">
+            <MenuItem Header="Open (as archive)"
+                      Command="{Binding PlacementTarget.Tag.OpenArchiveInNewTabCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <Separator/>
+            <MenuItem Header="Rename"
+                      Command="{Binding PlacementTarget.Tag.RenameItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <MenuItem Header="Delete"
+                      Command="{Binding PlacementTarget.Tag.DeleteItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <MenuItem Header="Replace"
+                      Command="{Binding PlacementTarget.Tag.ReplaceItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <Separator/>
+            <MenuItem Header="Export"
+                      Command="{Binding PlacementTarget.Tag.ExportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+        </ContextMenu>
+
+        <ContextMenu x:Key="MultiSelectContextMenu" Style="{StaticResource Theme.AcrylicContextMenuStyle}">
+            <MenuItem Header="Export Selection"
+                      Command="{Binding DataContext.ExportMultipleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                      CommandParameter="{Binding Path=SelectedItems, RelativeSource={RelativeSource AncestorType=ListView}}"/>
+            <MenuItem Header="Delete Selection"
+                      Command="{Binding DataContext.DeleteMultipleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                      CommandParameter="{Binding Path=SelectedItems, RelativeSource={RelativeSource AncestorType=ListView}}"/>
+        </ContextMenu>
+
+        <ContextMenu x:Key="ListViewEmptySpaceContextMenu" Style="{StaticResource Theme.AcrylicContextMenuStyle}">
+            <MenuItem Header="New Folder" 
+              Command="{Binding DataContext.NewFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <MenuItem Header="Import..." 
+              Command="{Binding DataContext.ImportFilesCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <MenuItem Header="Export current folder..." 
+              Command="{Binding DataContext.ExportCurrentFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Separator/>
+            <MenuItem Header="Change prefix for files..." 
+              Command="{Binding DataContext.ChangeFilePrefixesCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+        </ContextMenu>
+
+        <!-- Template for displaying folder nodes in the TreeView. -->
+        <HierarchicalDataTemplate DataType="{x:Type models:FolderNodeViewModel}" ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal">
+                <!-- Navigates to the folder when the item is clicked. -->
+                <i:Interaction.Triggers>
+                    <i:EventTrigger EventName="MouseLeftButtonDown">
+                        <i:InvokeCommandAction Command="{Binding DataContext.NavigateToFolderCommand, RelativeSource={RelativeSource AncestorType=TreeView}}"
+                                               CommandParameter="{Binding}"/>
+                    </i:EventTrigger>
+                </i:Interaction.Triggers>
+                <TextBlock Text="📁" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+            </StackPanel>
+        </HierarchicalDataTemplate>
+
+    </Window.Resources>
+
+    <Border Style="{StaticResource WindowBorderStyle}">
+        <!-- Main layout grid. Contains the primary content and a loading overlay on top. -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition Height="398*"/>
+            </Grid.RowDefinitions>
+            <!-- Primary application content. Is affected by the 'MainContentStyle' trigger during saving. -->
+            <Grid Style="{StaticResource MainContentStyle}" Grid.RowSpan="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Custom Title Bar -->
+                <Border Grid.Row="0" Style="{StaticResource TitleBarStyle}" MouseDown="MainWindow_MouseDown">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="1*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0">
+                            <Button Content="Open" Style="{StaticResource MenuButtonStyle}" Command="{Binding OpenArchiveCommand}"/>
+                            <Button Content="New" Style="{StaticResource MenuButtonStyle}" Command="{Binding NewFolderCommand}" IsEnabled="{Binding IsArchiveOpen}"/>
+                            <Button Content="Import" Style="{StaticResource MenuButtonStyle}" Command="{Binding ImportFilesCommand}" IsEnabled="{Binding IsArchiveOpen}"/>
+                            <Button Content="Export" Style="{StaticResource MenuButtonStyle}" Command="{Binding ExportCommand}" IsEnabled="{Binding IsArchiveOpen}"/>
+                            <Button Content="Save" Style="{StaticResource MenuButtonStyle}" Command="{Binding SaveArchiveCommand}" IsEnabled="{Binding IsArchiveOpen}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding Title}" Style="{StaticResource TitleTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="−" Style="{StaticResource WindowButtonStyle}" Click="MinimizeButton_Click"/>
+                            <Button Content="□" Style="{StaticResource WindowButtonStyle}" Click="MaximizeButton_Click"/>
+                            <Button Content="×" Style="{StaticResource CloseButtonStyle}" Click="CloseButton_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Welcome message and drop zone, visible only when no tabs are open. -->
+                <Border Grid.Row="1" Margin="5"
+                        gong:DragDrop.IsDropTarget="True"
+                        gong:DragDrop.DropHandler="{Binding}"
+                        MouseLeftButtonDown="WelcomeArea_MouseLeftButtonDown">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource PanelBorderStyle}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Tabs.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="Drag &amp; your Level 5 archive (.fa, .pck, .xc, .xb, .xa, .xr) here"
+                                   HorizontalAlignment="Center" Margin="0,10,0,0"
+                                   FontSize="18" Foreground="{DynamicResource Theme.Text.PrimaryBrush}"/>
+                        <TextBlock Text="or double click here to open a file"
+                                   HorizontalAlignment="Center" Margin="0,5,0,0"
+                                   FontSize="18" Foreground="{DynamicResource Theme.Text.PrimaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Main TabControl -->
+                <TabControl Grid.Row="1"
+                            ItemsSource="{Binding Tabs}"
+                            SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                            gong:DragDrop.IsDropTarget="True"
+                            gong:DragDrop.DropHandler="{Binding}">
+                    <TabControl.Style>
+                        <Style TargetType="TabControl">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Tabs.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TabControl.Style>
+                    <TabControl.Template>
+                        <ControlTemplate TargetType="TabControl">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Style="{StaticResource TabContainerStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TabPanel Grid.Column="0" IsItemsHost="True" Background="Transparent"/>
+                                        <Button Grid.Column="1" Content="+"
+                                                Style="{StaticResource AddTabButtonStyle}"
+                                                Command="{Binding AddNewTabCommand}"/>
+                                    </Grid>
+                                </Border>
+                                <ContentPresenter Grid.Row="1" ContentSource="SelectedContent"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </TabControl.Template>
+                    <TabControl.ItemContainerStyle>
+                        <Style TargetType="TabItem">
+                            <Setter Property="gong:DragDrop.IsDragSource" Value="True"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="TabItem">
+                                        <Border x:Name="TabBorder"
+                                                Style="{StaticResource TabItemStyle}"
+                                                Background="Transparent"
+                                                BorderThickness="0,0,1,0"
+                                                BorderBrush="{DynamicResource Theme.Border.Brush}"
+                                                Margin="0">
+                                            <ContentPresenter ContentSource="Header"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource Theme.Control.BackgroundBrush}"/>
+                                                <Setter TargetName="TabBorder" Property="BorderThickness" Value="1,1,1,0"/>
+                                                <Setter TargetName="TabBorder" Property="Margin" Value="2,2,0,0"/>
+                                            </Trigger>
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="IsMouseOver" Value="True"/>
+                                                    <Condition Property="IsSelected" Value="False"/>
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource Theme.Control.HoverBrush}"/>
+                                            </MultiTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </TabControl.ItemContainerStyle>
+                    <TabControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type viewmodels:TabViewModel}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding Header}"
+                                           Style="{StaticResource TabTextStyle}"/>
+                                <Button Grid.Column="1" Content="×"
+                                        Style="{StaticResource TabCloseButtonStyle}"
+                                        Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                        CommandParameter="{Binding}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </TabControl.ItemTemplate>
+                    <TabControl.ContentTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="40"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Style="{StaticResource NavigationToolbarStyle}">
+                                    <Grid Margin="10,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="30"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="200"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="←" Style="{StaticResource NavigationButtonStyle}" Command="{Binding DataContext.NavigateBackCommand, RelativeSource={RelativeSource AncestorType=TabControl}}" IsEnabled="{Binding DataContext.CanNavigateBack, RelativeSource={RelativeSource AncestorType=TabControl}}"/>
+                                        <Border Grid.Column="1" Style="{StaticResource AddressBarStyle}" Margin="10,0">
+                                            <TextBox Text="{Binding DataContext.AddressBarText, RelativeSource={RelativeSource AncestorType=TabControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AddressTextBoxStyle}" IsEnabled="{Binding DataContext.IsArchiveOpen, RelativeSource={RelativeSource AncestorType=TabControl}}"/>
+                                        </Border>
+                                        <Border Grid.Column="2" Style="{StaticResource SearchBarStyle}">
+                                            <TextBox Text="{Binding DataContext.SearchText, RelativeSource={RelativeSource AncestorType=TabControl}, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}" IsEnabled="{Binding DataContext.IsArchiveOpen, RelativeSource={RelativeSource AncestorType=TabControl}}">
+                                                <i:Interaction.Triggers>
+                                                    <i:EventTrigger EventName="GotFocus">
+                                                        <i:InvokeCommandAction Command="{Binding DataContext.SearchGotFocusCommand, RelativeSource={RelativeSource AncestorType=TabControl}}" />
+                                                    </i:EventTrigger>
+                                                    <i:EventTrigger EventName="LostFocus">
+                                                        <i:InvokeCommandAction Command="{Binding DataContext.SearchLostFocusCommand, RelativeSource={RelativeSource AncestorType=TabControl}}" />
+                                                    </i:EventTrigger>
+                                                </i:Interaction.Triggers>
+                                            </TextBox>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="250"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource PanelBorderStyle}">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="30"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="Folders" Style="{StaticResource PanelHeaderStyle}"/>
+                                            <TreeView Grid.Row="1"
+                                                      ItemsSource="{Binding DataContext.RootFolders, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                                      Style="{StaticResource ModernTreeViewStyle}"
+                                                      SelectedItemChanged="TreeView_SelectedItemChanged">
+                                                <!-- This style links the TreeViewItem's state (IsSelected, IsExpanded) to the ViewModel properties for two-way binding. -->
+                                                <TreeView.ItemContainerStyle>
+                                                    <Style TargetType="{x:Type TreeViewItem}" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                                                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                                        <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=TabControl}}"/>
+                                                        <EventSetter Event="PreviewMouseRightButtonDown" Handler="TreeViewItem_PreviewMouseRightButtonDown"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                                <Setter Property="ContextMenu" Value="{StaticResource FolderContextMenu}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TreeView.ItemContainerStyle>
+                                            </TreeView>
+                                        </Grid>
+                                    </Border>
+                                    <Border Grid.Column="1" Style="{StaticResource PanelBorderStyle}" Margin="5,5,0,5">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="30"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="Files" Style="{StaticResource PanelHeaderStyle}"/>
+                                            <ListView Grid.Row="1" x:Name="FileListView" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                      ItemsSource="{Binding DataContext.CurrentFilesAndFolders, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                                      SelectedItem="{Binding DataContext.SelectedItem, RelativeSource={RelativeSource AncestorType=TabControl}, Mode=TwoWay}"
+                                                      d:ItemsSource="{d:SampleData ItemCount=5}"
+                                                      MouseDoubleClick="FileListView_MouseDoubleClick" SelectionMode="Extended">
+                                                <ListView.Style>
+                                                    <Style TargetType="ListView" BasedOn="{StaticResource ModernListViewStyle}">
+                                                        <Setter Property="ContextMenu" Value="{StaticResource ListViewEmptySpaceContextMenu}"/>
+                                                    </Style>
+                                                </ListView.Style>
+                                                <ListView.ItemContainerStyle>
+                                                    <Style TargetType="ListViewItem">
+                                                        <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=TabControl}}"/>
+                                                        <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
+                                                        <Setter Property="ContextMenu" Value="{StaticResource FileContextMenu}"/>
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ListViewItem">
+                                                                    <Border x:Name="Bd" Background="Transparent" BorderThickness="0" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                                                                        <GridViewRowPresenter VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Theme.Accent.Brush}"/>
+                                                                            <Setter Property="Foreground" Value="White"/>
+                                                                        </Trigger>
+                                                                        <MultiTrigger>
+                                                                            <MultiTrigger.Conditions>
+                                                                                <Condition Property="IsMouseOver" Value="True"/>
+                                                                                <Condition Property="IsSelected" Value="False"/>
+                                                                            </MultiTrigger.Conditions>
+                                                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Theme.Control.HoverBrush}"/>
+                                                                        </MultiTrigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Style.Triggers>
+                                                            <!-- Trigger for folders, which have a different context menu. -->
+                                                            <DataTrigger Binding="{Binding Type}" Value="Folder">
+                                                                <Setter Property="ContextMenu" Value="{StaticResource FolderContextMenu}"/>
+                                                            </DataTrigger>
+                                                            <!-- Trigger to display the multi-selection context menu when more than one item is selected. -->
+                                                            <DataTrigger Value="True">
+                                                                <DataTrigger.Binding>
+                                                                    <MultiBinding Converter="{StaticResource IsGreaterThanConverter}" ConverterParameter="1">
+                                                                        <Binding Path="SelectedItems.Count" RelativeSource="{RelativeSource AncestorType=ListView}"/>
+                                                                    </MultiBinding>
+                                                                </DataTrigger.Binding>
+                                                                <Setter Property="ContextMenu" Value="{StaticResource MultiSelectContextMenu}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ListView.ItemContainerStyle>
+                                                <ListView.View>
+                                                    <GridView>
+                                                        <GridView.ColumnHeaderContainerStyle>
+                                                            <Style TargetType="{x:Type GridViewColumnHeader}">
+                                                                <Setter Property="Height" Value="0"/>
+                                                            </Style>
+                                                        </GridView.ColumnHeaderContainerStyle>
+                                                        <GridViewColumn Header="Name" Width="350">
+                                                            <GridViewColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding Icon}" FontSize="16" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                                        <TextBlock Text="{Binding Name}" 
+                                                                                   VerticalAlignment="Center" 
+                                                                                   TextTrimming="CharacterEllipsis">
+                                                                            <TextBlock.Foreground>
+                                                                                <MultiBinding Converter="{StaticResource ThemeAwareDrawingColorConverter}">
+                                                                                    <Binding Path="ForeColor" />
+                                                                                    <Binding Path="DataContext.CurrentAccentColor" 
+                                                                                                   RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                                                </MultiBinding>
+                                                                            </TextBlock.Foreground>
+                                                                        </TextBlock>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </GridViewColumn.CellTemplate>
+                                                        </GridViewColumn>
+                                                        <GridViewColumn Header="Size" Width="120">
+                                                            <GridViewColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding Size}" HorizontalAlignment="Right" VerticalAlignment="Center" Padding="0,0,10,0"/>
+                                                                </DataTemplate>
+                                                            </GridViewColumn.CellTemplate>
+                                                        </GridViewColumn>
+                                                        <GridViewColumn Header="Type" DisplayMemberBinding="{Binding Type}" Width="150"/>
+                                                    </GridView>
+                                                </ListView.View>
+                                            </ListView>
+                                        </Grid>
+                                    </Border>
+                                    <Border Grid.Column="2" Style="{StaticResource PanelBorderStyle}">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="30"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="Details" Style="{StaticResource PanelHeaderStyle}"/>
+                                            <StackPanel Grid.Row="1" Margin="15">
+                                                <TextBlock Text="Selected Item:" Style="{StaticResource DetailLabelStyle}"/>
+                                                <TextBlock Text="{Binding DataContext.SelectedItem.Name, RelativeSource={RelativeSource AncestorType=TabControl}}" Style="{StaticResource DetailValueStyle}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="Size:" Style="{StaticResource DetailLabelStyle}" Margin="0,15,0,0"/>
+                                                <TextBlock Text="{Binding DataContext.SelectedItem.Size, RelativeSource={RelativeSource AncestorType=TabControl}}" Style="{StaticResource DetailValueStyle}"/>
+                                                <TextBlock Text="Type:" Style="{StaticResource DetailLabelStyle}" Margin="0,15,0,0"/>
+                                                <TextBlock Text="{Binding DataContext.SelectedItem.Type, RelativeSource={RelativeSource AncestorType=TabControl}}" Style="{StaticResource DetailValueStyle}"/>
+
+                                                <!-- Preview container for the selected item's image. -->
+                                                <Border BorderBrush="{DynamicResource Theme.Border.Brush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3"
+                                                        Margin="0,15,0,0"
+                                                        HorizontalAlignment="Left">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <!-- Hide the entire border if the PreviewImage is null. -->
+                                                                <DataTrigger Binding="{Binding DataContext.PreviewImage, RelativeSource={RelativeSource AncestorType=TabControl}}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <StackPanel>
+                                                        <TextBlock Text="Preview:" Style="{StaticResource DetailLabelStyle}" Margin="5"/>
+                                                        <Image Source="{Binding DataContext.PreviewImage, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                                               Stretch="Uniform"
+                                                               MaxHeight="200"
+                                                               MaxWidth="250"
+                                                               Margin="5,0,5,5"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </TabControl.ContentTemplate>
+                </TabControl>
+            </Grid>
+
+            <!-- Theme and color settings -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,25,25" Grid.Row="1">
+                <ComboBox Margin="0,0,5,0" Width="180"
+                          Style="{StaticResource ModernComboBoxStyle}"
+                          ItemsSource="{Binding DataContext.AvailableThemes, RelativeSource={RelativeSource AncestorType=Window}}"
+                          SelectedItem="{Binding DataContext.SelectedTheme, RelativeSource={RelativeSource AncestorType=Window}}"
+                          DisplayMemberPath="DisplayName" />
+
+                <Button Style="{StaticResource ColorPickerButtonStyle}"
+                        Command="{Binding DataContext.PickAccentColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Pick custom accent color">
+                    <Button.Background>
+                        <SolidColorBrush Color="{Binding DataContext.CurrentAccentColor, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    </Button.Background>
+                </Button>
+
+                <Button Style="{StaticResource ThemeResetButtonStyle}"
+                        Margin="5,0,0,0"
+                        Command="{Binding DataContext.ResetAccentColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        Content="⟲"
+                        FontSize="16"
+                        ToolTip="Reset to theme's default color"/>
+            </StackPanel>
+
+            <!-- Saving overlay. Appears on top of the main content when IsSaving is true. -->
+            <Grid Background="#A0000000"
+                  Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}" Grid.RowSpan="2">
+                <Border VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        Background="{DynamicResource Theme.Panel.BackgroundBrush}"
+                        CornerRadius="10"
+                        Padding="40">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="0" Color="Black" Opacity="0.4" BlurRadius="20"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <controls:CircularProgressBar Style="{StaticResource CustomCircularProgressBarStyle}"
+                                                      Width="100" Height="100"
+                                                      Minimum="0" Maximum="100"
+                                                      Value="{Binding SaveProgressPercentage}"
+                                                      StrokeThickness="8"
+                                                      Background="{DynamicResource Theme.Accent.Brush}"
+                                                      Foreground="{DynamicResource Theme.Text.PrimaryBrush}"
+                                                      FontSize="24"
+                                                      FontWeight="Bold"/>
+
+                        <TextBlock Text="Saving..."
+                                   Margin="0,20,0,0"
+                                   Foreground="{DynamicResource Theme.Text.PrimaryBrush}"
+                                   FontSize="16"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

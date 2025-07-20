@@ -1,0 +1,17 @@
+﻿<!-- BlueAcrylicTransparentTheme.xaml -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Color settings -->
+    <SolidColorBrush x:Key="Theme.Window.BackgroundBrush" Color="#880A111F"/>
+    <SolidColorBrush x:Key="Theme.Control.BackgroundBrush" Color="#661A253C"/>
+    <SolidColorBrush x:Key="Theme.TitleBar.BackgroundBrush" Color="#770A111F"/>
+    <SolidColorBrush x:Key="Theme.Accent.Brush" Color="#FF3399FF"/>
+    <SolidColorBrush x:Key="Theme.Text.PrimaryBrush" Color="#FFE0E0E0"/>
+    <SolidColorBrush x:Key="Theme.Text.SecondaryBrush" Color="#B0E0E0E0"/>
+    <SolidColorBrush x:Key="Theme.Border.Brush" Color="#4066B2FF"/>
+    <SolidColorBrush x:Key="Theme.Control.HoverBrush" Color="#203399FF"/>
+    <SolidColorBrush x:Key="Theme.Control.ActiveBrush" Color="#403399FF"/>
+    <SolidColorBrush x:Key="Theme.Button.Close.HoverBrush" Color="#E81123"/>
+
+</ResourceDictionary>

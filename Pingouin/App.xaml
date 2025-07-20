@@ -1,0 +1,29 @@
+﻿<Application x:Class="Pingouin.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Pingouin"
+             xmlns:converters="clr-namespace:Pingouin.Converters"
+             StartupUri="/Views/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles/Colors/BlueAcrylicTransparentTheme.xaml"/>
+                <ResourceDictionary Source="Styles/StudioElevenTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:IsGreaterThanConverter x:Key="IsGreaterThanConverter" />
+            <converters:StringToBooleanConverterForFile x:Key="StringToBooleanConverterForFile"/>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:AngleToPointConverter x:Key="AngleToPointConverter"/>
+            <converters:AngleToIsLargeConverter x:Key="AngleToIsLargeConverter"/>
+            <converters:DrawingColorToBrushConverter x:Key="DrawingColorToBrushConverter"/>
+            <converters:ThemeAwareDrawingColorConverter x:Key="ThemeAwareDrawingColorConverter"/>
+
+            <Style TargetType="Window">
+                <Setter Property="UseLayoutRounding" Value="True"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
